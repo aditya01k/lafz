@@ -108,6 +108,81 @@ export function toVtt(lines: Line[], o?: SubOptions): string {
   return "WEBVTT\n\n" + lines.map((l) => `${stamp(l.start, ".")} --> ${stamp(l.end, ".")}\n${lineText(l, o)}\n`).join("\n");
 }
 
+/** Look of an ASS file. Sizes are in pixels of the frame (`width` x `height`). */
+export type AssOptions = {
+  width: number;
+  height: number;
+  fontName: string;
+  fontSize: number;
+  bold: boolean;
+  /** Colour of words not yet said. */
+  textColor: string;
+  /** Colour a word turns when it is said. */
+  highlightColor: string;
+  outlineColor: string;
+  outlineWidth: number;
+  /** Vertical centre, 0 = top, 1 = bottom (as in the editor). */
+  y: number;
+};
+
+/** ASS colours are &HAABBGGRR: blue and red swap places compared with CSS hex. */
+export function assColor(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  const h = (m ? m[1] : "ffffff").toUpperCase();
+  return `&H00${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}`;
+}
+
+/** ASS time is h:mm:ss.cc (centiseconds). */
+export function assTime(s: number): string {
+  const cs = Math.max(0, Math.round(s * 100));
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${Math.floor(cs / 360000)}:${p(Math.floor((cs % 360000) / 6000))}:${p(Math.floor((cs % 6000) / 100))}.${p(cs % 100)}`;
+}
+
+// Braces start override tags and backslashes start escapes in ASS, so a word can't carry them.
+const assText = (t: string) => t.replace(/\{/g, "(").replace(/\}/g, ")").replace(/\\/g, "/");
+
+/**
+ * Advanced SubStation (.ass) with word-by-word karaoke: each word carries a \k tag with the time
+ * until the next word, so players (libass: VLC, mpv, Aegisub, ffmpeg) colour words as they are
+ * said, in the editor's own colours. Each caption is one event; the player wraps long ones.
+ */
+export function toAss(lines: Line[], o: AssOptions): string {
+  const style = [
+    "Style: Default", o.fontName, Math.round(o.fontSize), assColor(o.highlightColor), assColor(o.textColor), assColor(o.outlineColor),
+    "&H64000000", o.bold ? -1 : 0, 0, 0, 0, 100, 100, 0, 0, 1, Math.round(o.outlineWidth * 1000) / 1000, 0, 2, 40, 40,
+    Math.round((1 - o.y) * o.height), 1,
+  ].join(",");
+  const events = lines.map((l) => {
+    const text = l.words
+      .map((w, i) => {
+        const until = l.words[i + 1]?.start ?? w.end;
+        const cs = Math.max(1, Math.round((until - w.start) * 100));
+        return `{\\k${cs}}${assText(w.text)}`;
+      })
+      .join(" ");
+    return `Dialogue: 0,${assTime(l.start)},${assTime(l.end)},Default,,0,0,0,,${text}`;
+  });
+  return [
+    "[Script Info]",
+    "; Made with lafz",
+    "ScriptType: v4.00+",
+    `PlayResX: ${o.width}`,
+    `PlayResY: ${o.height}`,
+    "WrapStyle: 0",
+    "ScaledBorderAndShadow: yes",
+    "",
+    "[V4+ Styles]",
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+    style,
+    "",
+    "[Events]",
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    ...events,
+    "",
+  ].join("\n");
+}
+
 export function toText(words: Word[]): string {
   return words.map((w) => w.text).join(" ").replace(/\s+([?!])/g, "$1");
 }

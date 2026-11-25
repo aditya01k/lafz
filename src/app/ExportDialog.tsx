@@ -3,11 +3,12 @@
 import { useRef, useState } from "react";
 import { download, exportBurnedIn, exportOverlay, exportPngSequence } from "@/lib/export";
 import { minutesLabel, RUPEES_PER_MINUTE } from "@/lib/pricing";
-import { toSrt, toText, toVtt, type Line, type SubOptions } from "@/lib/lines";
+import { toAss, toSrt, toText, toVtt, type Line, type SubOptions } from "@/lib/lines";
+import { fontMeta } from "@/lib/fonts";
 import type { Style } from "@/lib/templates";
 import type { Word } from "@/lib/types";
 
-type Kind = "mp4" | "png" | "green" | "alpha" | "srt" | "vtt" | "txt";
+type Kind = "mp4" | "png" | "green" | "alpha" | "srt" | "ass" | "vtt" | "txt";
 
 const POST: { kind: Kind; title: string; sub: string }[] = [{ kind: "mp4", title: "Video with captions", sub: "MP4 with your audio, ready to post" }];
 
@@ -16,6 +17,7 @@ const EDIT: { kind: Kind; title: string; sub: string }[] = [
   { kind: "png", title: "Transparent PNG sequence", sub: "Styled captions with alpha, as a zip. Works in every editor" },
   { kind: "green", title: "Green screen MP4", sub: "Styled captions on #00FF00, to key out" },
   { kind: "alpha", title: "Transparent WebM", sub: "VP9 alpha, for CapCut, OBS and the web" },
+  { kind: "ass", title: "ASS karaoke", sub: "Words light up as they are said. For VLC, mpv, Aegisub and ffmpeg" },
   { kind: "vtt", title: "VTT", sub: "For web players" },
   { kind: "txt", title: "Transcript", sub: "Plain text" },
 ];
@@ -66,6 +68,23 @@ export default function ExportDialog({
       if (beforeExport && !(await beforeExport())) return;
     } catch (err) {
       return setError(err instanceof Error ? err.message : "Couldn't start the export.");
+    }
+    if (kind === "ass") {
+      // The file uses the editor's look: colours, font, size and position.
+      const text = toAss(lines, {
+        width: size.width,
+        height: size.height,
+        fontName: fontMeta(style.font).name,
+        fontSize: style.size * size.width,
+        bold: style.weight >= 700,
+        textColor: style.textColor,
+        highlightColor: style.highlightColor,
+        outlineColor: style.outlineColor,
+        outlineWidth: style.outlineWidth * style.size * size.width,
+        y: style.y,
+      });
+      download(new Blob([text], { type: "text/plain" }), `${base}.ass`);
+      return;
     }
     if (kind === "srt" || kind === "vtt" || kind === "txt") {
       const text = kind === "srt" ? toSrt(lines, sub) : kind === "vtt" ? toVtt(lines, sub) : toText(words);
