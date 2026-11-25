@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "benchmark": "tsx scripts/benchmark.mts"
   },
   "packageManager": "pnpm@10.11.0",
   "dependencies": {

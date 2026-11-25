@@ -44,3 +44,8 @@ next-env.d.ts
 # trips in development
 /.data
 /public/_test*
+
+# Benchmark media and transcripts stay local
+/benchmark/*
+!/benchmark/README.md
+!/benchmark/results.json

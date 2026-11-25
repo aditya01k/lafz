@@ -39,7 +39,7 @@ Export needs a browser with WebCodecs (Chrome, Edge, Safari 17+). Transparent ex
 
 ## Hosted mode
 
-Set `DATABASE_URL` and `BETTER_AUTH_SECRET` and the app turns on sign-in (email link or Google) and prepaid credits: ₹10 per minute of video, sold in packs through Dodo Payments (`src/lib/pricing.ts`). Credits are a ledger in Postgres (`src/server/credits.ts`); a transcription is charged up front and refunded if it fails. Tables are created on boot. Point Dodo's webhook at `/api/dodo/webhook`.
+Set `DATABASE_URL` and `BETTER_AUTH_SECRET` and the app turns on sign-in (email link or Google) and prepaid credits: ₹4 per minute of video, sold in packs through Dodo Payments (`src/lib/pricing.ts`). Credits are a ledger in Postgres (`src/server/credits.ts`); a transcription is charged up front and refunded if it fails. Tables are created on boot. Point Dodo's webhook at `/api/dodo/webhook`.
 
 Leave those unset and every feature is free with no sign-in, which is what you want on your own machine.
 
