@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LANGUAGES } from "@/lib/languages";
+import { LANGUAGES, languageById, type Script } from "@/lib/languages";
+import { AccountButton } from "./Account";
 import { HeroDemo, Playground } from "./demo";
 
 const STEPS = ["Reading the audio", "Listening to every word", "Fixing the spellings"];
 const GITHUB = "https://github.com/aditya01k/lafz";
 const CLONE = "git clone https://github.com/aditya01k/lafz";
 
-type OnFile = (f: File, opts: { dictionary: string; language: string }) => void;
+type OnFile = (f: File, opts: { dictionary: string; language: string; script: Script }) => void;
 
 export default function Upload({ onFile, error, working }: { onFile: OnFile; error?: string; working?: { step: number; name: string } }) {
   const pickRef = useRef<() => void>(() => {});
@@ -31,7 +32,7 @@ export default function Upload({ onFile, error, working }: { onFile: OnFile; err
               Captions for every Indian language.
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-muted sm:text-[19px]">
-              Hinglish, Tanglish and 10 more, spelled the way creators type, timed word by word. Open source: run it free on
+              Hindi, Tamil, Telugu and 8 more, in English letters or their own script, timed word by word. Open source: run it free on
               your own machine, or use ours and pay per minute.
             </p>
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -118,6 +119,7 @@ function Nav({ onStart }: { onStart: () => void }) {
           <a href="#pricing" className="hover:text-foreground">Pricing</a>
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          <AccountButton />
           <a
             href={GITHUB}
             className="flex h-8 items-center gap-2 rounded-full border border-hairline px-3 text-[13px] text-muted transition hover:border-white/20 hover:text-foreground"
@@ -157,13 +159,15 @@ function Dropzone({ onFile, error, pickRef }: { onFile: OnFile; error?: string; 
   const input = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
   const [dictionary, setDictionary] = useState("");
-  const [language, setLanguage] = useState("hinglish");
+  const [language, setLanguage] = useState("hindi");
+  const [script, setScript] = useState<Script>("latin");
+  const lang = languageById(language);
   useEffect(() => {
     pickRef.current = () => input.current?.click();
   }, [pickRef]);
 
   const pick = (f?: File | null) => {
-    if (f && (f.type.startsWith("video/") || /\.(mp4|mov|m4v|webm)$/i.test(f.name))) onFile(f, { dictionary, language });
+    if (f && (f.type.startsWith("video/") || /\.(mp4|mov|m4v|webm)$/i.test(f.name))) onFile(f, { dictionary, language, script });
   };
 
   return (
@@ -205,11 +209,24 @@ function Dropzone({ onFile, error, pickRef }: { onFile: OnFile; error?: string; 
         >
           {LANGUAGES.map((l) => (
             <option key={l.id} value={l.id}>
-              {l.name} · {l.sub}
-              {l.status === "beta" ? " (beta)" : ""}
+              {l.name}
             </option>
           ))}
         </select>
+        <span className="text-muted">Write in</span>
+        <div className="grid grid-cols-2 gap-1 rounded-lg border border-hairline bg-black p-1">
+          {(["latin", "native"] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setScript(s)}
+              className={`rounded-md px-2 py-1.5 text-left transition ${script === s ? "bg-white/10 text-foreground" : "text-muted hover:text-foreground"}`}
+            >
+              <span className="block text-[12px] font-medium">{s === "latin" ? "English letters" : lang.scriptName}</span>
+              <span className="block truncate text-[12px] opacity-70">{s === "latin" ? lang.latinSample : lang.nativeSample}</span>
+            </button>
+          ))}
+        </div>
         <label htmlFor="dict" className="text-muted">Spell right</label>
         <input
           id="dict"
@@ -259,7 +276,7 @@ function SectionHead({ kicker, title, sub }: { kicker: string; title: string; su
 }
 
 const FEATURES = [
-  { k: "01", title: "Spelled like you text", body: "“yaar kya scene hai”, not “Your car seen hey”. Every word is rewritten in the casual Roman spelling creators actually use." },
+  { k: "01", title: "Spelled like you text", body: "“yaar kya scene hai”, not “Your car seen hey”. Every word is written the casual way creators actually type it." },
   { k: "02", title: "Timed word by word", body: "Each word pops in as it's said. Fix a word and its timing stays put." },
   { k: "03", title: "Built on Sarvam", body: "India's own speech models hear Indian accents, code-switching and regional languages properly." },
   { k: "04", title: "Renders on your device", body: "Export runs in your browser. No upload queue, no waiting on a server, your video never leaves." },
@@ -322,23 +339,15 @@ function Languages() {
       <div className="mx-auto max-w-6xl px-5 py-24">
         <SectionHead
           kicker="Languages"
-          title="Twelve languages, Roman or native script."
-          sub="Hinglish is live. The rest are in beta and get better with every word creators correct."
+          title="Eleven Indian languages. Your letters or theirs."
+          sub="Every language can be captioned in English letters, the way people text, or in its own script. English words stay in English either way."
         />
         <div className="mt-12 grid overflow-hidden rounded-2xl border border-hairline sm:grid-cols-2 lg:grid-cols-4">
           {LANGUAGES.map((l) => (
-            <div key={l.id} className="-mt-px -ml-px flex items-center justify-between border-t border-l border-hairline px-5 py-4">
-              <div>
-                <div className="text-[15px] font-medium">{l.name}</div>
-                <div className="text-[13px] text-muted">{l.sub}</div>
-              </div>
-              <span
-                className={`rounded-full px-2 py-0.5 font-mono text-[11px] ${
-                  l.status === "live" ? "bg-white text-black" : "border border-hairline text-muted"
-                }`}
-              >
-                {l.status}
-              </span>
+            <div key={l.id} className="-mt-px -ml-px border-t border-l border-hairline px-5 py-4">
+              <div className="text-[15px] font-medium">{l.name}</div>
+              <div className="mt-1 text-[13px] text-muted">{l.latinSample}</div>
+              <div className="text-[13px] text-muted">{l.nativeSample}</div>
             </div>
           ))}
         </div>

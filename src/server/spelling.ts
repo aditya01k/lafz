@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
-import { spokenName, type Language } from "@/lib/languages";
+import type { Language, Script } from "@/lib/languages";
 import type { TimedWord } from "./whisper";
 
 let client: OpenAI | undefined;
@@ -30,18 +30,16 @@ SCRIPT_RULES
 - Never translate. Never merge or split words: one input word, one output entry.
 Return "" for a word only if it is a stutter duplicate or a non-speech token.`;
 
-function promptFor(language: Language) {
-  const name = spokenName(language);
+function promptFor(language: Language, script: Script) {
+  const name = language.name;
   const rules =
-    language.id === "hinglish"
-      ? `- Write Hindi/Urdu words in Roman script the way Indian creators type on Instagram and WhatsApp:
-  "hai", "nahi", "kya", "bhai", "yaar", "accha", "matlab", "bahut", "kyunki", "wahan", "chahiye", "mein", "hum", "toh".
-- Convert any Devanagari or Urdu script word to that Roman spelling.`
-      : language.script === "native"
-        ? `- Write ${name} words in their native script with standard spelling.
+    script === "native"
+      ? `- Write ${name} words in ${language.scriptName} with standard spelling.
 - Write English words in Latin script, as English.`
-        : `- Write ${name} words in Roman script the way ${name} speakers type on Instagram and WhatsApp: common, casual spellings, not formal transliteration with diacritics.
-- Convert any native-script word to that Roman spelling.`;
+      : `- Write ${name} words in English letters the way ${name} speakers type on Instagram and WhatsApp: common, casual spellings${
+          language.id === "hindi" ? ' ("hai", "nahi", "kya", "bhai", "yaar", "accha", "matlab", "bahut", "kyunki", "wahan", "chahiye", "mein", "hum", "toh")' : ""
+        }, not formal transliteration with diacritics.
+- Convert any ${language.scriptName} word to that spelling.`;
   return `You clean up auto-transcribed ${name}-English speech for video captions.\n${COMMON.replace("SCRIPT_RULES", rules)}`;
 }
 
@@ -50,18 +48,19 @@ export async function cleanSpelling(
   words: TimedWord[],
   dictionary: string[],
   language: Language,
+  script: Script,
 ): Promise<(TimedWord & { emoji?: string })[]> {
   if (!words.length) return [];
   client ??= new OpenAI();
   const out: (TimedWord & { emoji?: string })[] = [];
   for (let i = 0; i < words.length; i += BATCH) {
     const batch = words.slice(i, i + BATCH);
-    out.push(...(await cleanBatch(batch, dictionary, language)));
+    out.push(...(await cleanBatch(batch, dictionary, language, script)));
   }
   return out.filter((w) => w.text);
 }
 
-async function cleanBatch(batch: TimedWord[], dictionary: string[], language: Language) {
+async function cleanBatch(batch: TimedWord[], dictionary: string[], language: Language, script: Script) {
   const dict = dictionary.length
     ? `\n\nThe creator's own spellings, always use these exactly: ${dictionary.join(", ")}`
     : "";
@@ -69,7 +68,7 @@ async function cleanBatch(batch: TimedWord[], dictionary: string[], language: La
     const response = await client!.responses.parse({
       model: MODEL,
       reasoning: { effort: "low" },
-      instructions: promptFor(language) + dict,
+      instructions: promptFor(language, script) + dict,
       input: batch.map((w, i) => `${i + 1}. ${w.text}`).join("\n"),
       text: { format: zodTextFormat(Out, "hinglish_words") },
     });

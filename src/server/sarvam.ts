@@ -1,10 +1,10 @@
-import type { Language } from "@/lib/languages";
+import type { Language, Script } from "@/lib/languages";
 import { sliceWav } from "./wav";
 import type { TimedWord } from "./whisper";
 
 // Sarvam's REST endpoint takes at most 30 s of audio and times phrases, not words.
 // So Whisper's words decide where to cut and when each word lands; Sarvam only
-// supplies the Roman Hinglish text for each piece.
+// supplies the text for each piece.
 const MAX_PIECE = 25;
 const PAD = 0.15;
 
@@ -38,12 +38,12 @@ export function splitIntoPieces(words: TimedWord[]): Piece[] {
   return pieces;
 }
 
-async function sarvamText(wav: Uint8Array, key: string, language: Language): Promise<string> {
+async function sarvamText(wav: Uint8Array, key: string, language: Language, script: Script): Promise<string> {
   const form = new FormData();
   form.append("file", new Blob([wav as BlobPart], { type: "audio/wav" }), "piece.wav");
   form.append("model", "saaras:v4");
-  // Roman: everything in Latin script. Native: the language's script with English left in English.
-  form.append("mode", language.script === "roman" ? "translit" : "codemix");
+  // English letters: everything in Latin script. Native: the language's script, English left in English.
+  form.append("mode", script === "latin" ? "translit" : "codemix");
   form.append("language_code", language.sarvam);
   for (let attempt = 0; ; attempt++) {
     const res = await fetch("https://api.sarvam.ai/speech-to-text", {
@@ -102,11 +102,12 @@ export async function sarvamWords(
   timing: TimedWord[],
   key: string,
   language: Language,
+  script: Script,
 ): Promise<TimedWord[]> {
   const pieces = splitIntoPieces(timing);
   const results = await Promise.all(
     pieces.map(async (p) => {
-      const text = await sarvamText(sliceWav(wav, p.start - PAD, p.end + PAD), key, language);
+      const text = await sarvamText(sliceWav(wav, p.start - PAD, p.end + PAD), key, language, script);
       const tokens = text.split(/\s+/).filter(Boolean);
       // An empty answer for a piece Whisper heard keeps Whisper's words.
       return tokens.length ? mapOntoTiming(tokens, p.words) : p.words;

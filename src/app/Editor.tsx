@@ -5,6 +5,7 @@ import { deleteWord, editWord, insertAfter, nudge, replaceAll, toggle } from "@/
 import { buildLines, type Line } from "@/lib/lines";
 import { drawCaptions, lineBudget, loadFonts, type Style } from "@/lib/templates";
 import type { Word } from "@/lib/types";
+import { AccountButton } from "./Account";
 import ExportDialog from "./ExportDialog";
 import StylePanel from "./StylePanel";
 import type { Project } from "./Studio";
@@ -131,6 +132,7 @@ export default function Editor({
           <span className="shrink-0 rounded-full bg-white/5 px-2 py-0.5 text-[11px]">Saved on this device</span>
         </span>
         <span className="flex-1 sm:hidden" />
+        <AccountButton />
         <button
           onClick={undo}
           disabled={!past.length}

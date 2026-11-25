@@ -23,12 +23,12 @@ export function speak(text: string, at = 0): Word[] {
 type Scene = { lang: string; text: string; template: TemplateId; colors: [string, string, string] };
 
 const SCENES: Scene[] = [
-  { lang: "Hinglish", text: "bhai yeh jagah ekdum mast hai", template: "punch", colors: ["#ff7a45", "#7a1f5c", "#1b0f2e"] },
-  { lang: "Hindi", text: "आज हम गोवा जा रहे हैं", template: "karaoke", colors: ["#1fb5a8", "#164a7a", "#0b1426"] },
-  { lang: "Tanglish", text: "machi idhu semma place da", template: "bubble", colors: ["#ffb347", "#c2410c", "#2a0f06"] },
-  { lang: "Punjabi", text: "oye chak de phatte yaar", template: "bazaar", colors: ["#9b5cff", "#2d1b69", "#0d0820"] },
-  { lang: "Bengali", text: "ki darun jayga re", template: "neon", colors: ["#2563eb", "#0f1f4d", "#05070f"] },
-  { lang: "Marathi", text: "lai bhari", template: "headline", colors: ["#22c55e", "#14532d", "#04130a"] },
+  { lang: "Hindi · English letters", text: "bhai yeh jagah ekdum mast hai", template: "punch", colors: ["#ff7a45", "#7a1f5c", "#1b0f2e"] },
+  { lang: "Hindi · Hindi script", text: "आज हम गोवा जा रहे हैं", template: "karaoke", colors: ["#1fb5a8", "#164a7a", "#0b1426"] },
+  { lang: "Tamil · English letters", text: "machi idhu semma place da", template: "bubble", colors: ["#ffb347", "#c2410c", "#2a0f06"] },
+  { lang: "Punjabi · English letters", text: "oye chak de phatte yaar", template: "bazaar", colors: ["#9b5cff", "#2d1b69", "#0d0820"] },
+  { lang: "Bengali · English letters", text: "ki darun jayga re", template: "neon", colors: ["#2563eb", "#0f1f4d", "#05070f"] },
+  { lang: "Marathi · English letters", text: "lai bhari", template: "headline", colors: ["#22c55e", "#14532d", "#04130a"] },
 ];
 
 function backdrop(ctx: CanvasRenderingContext2D, W: number, H: number, t: number, c: [string, string, string]) {

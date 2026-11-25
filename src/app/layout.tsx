@@ -3,8 +3,8 @@ import { fontVariables } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Lafz: Hinglish captions",
-  description: "Word-by-word Hinglish captions in the Roman script you actually type in. Upload a reel, fix any word, export.",
+  title: "Lafz: captions for every Indian language",
+  description: "Open-source, word-by-word captions in 11 Indian languages, in English letters or their own script. Upload a reel, fix any word, export.",
 };
 
 export const viewport: Viewport = {

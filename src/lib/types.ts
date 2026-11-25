@@ -16,4 +16,6 @@ export type TranscribeResult = {
   words: Word[];
   engine: "sarvam+whisper" | "whisper";
   durationSec: number;
+  /** Credit left, in seconds (hosted only). */
+  seconds?: number;
 };

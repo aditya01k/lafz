@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { extractWav } from "@/lib/audio";
+import { minutesLabel } from "@/lib/pricing";
 import { FONT_FAMILIES, defaultStyle, type Style } from "@/lib/templates";
 import type { TranscribeResult, Word } from "@/lib/types";
+import { useAccount } from "./Account";
 import Editor from "./Editor";
 import { anton, bebas, inter, montserrat, poppins } from "./fonts";
 import Upload from "./Upload";
@@ -28,6 +30,7 @@ const cacheKey = (f: File) => `lafz:${f.name}:${f.size}:${f.lastModified}`;
 
 export default function Studio() {
   const [phase, setPhase] = useState<Phase>({ kind: "upload" });
+  const account = useAccount();
 
   useEffect(() => {
     // Canvas needs the real family names next/font generated.
@@ -38,13 +41,19 @@ export default function Studio() {
     FONT_FAMILIES.bebas = bebas.style.fontFamily;
   }, []);
 
-  async function start(file: File, opts: { dictionary: string; language: string }) {
-    const key = `${cacheKey(file)}:${opts.language}`;
+  async function start(file: File, opts: { dictionary: string; language: string; script: "latin" | "native" }) {
+    const key = `${cacheKey(file)}:${opts.language}:${opts.script}`;
     const url = URL.createObjectURL(file);
     // Same file again (after a refresh): reopen the saved edit, no second transcription.
     const saved = readSaved(key);
     if (saved) {
       setPhase({ kind: "edit", project: { file, url, key, ...saved } });
+      return;
+    }
+    // Hosted: sign in before spending time reading the audio.
+    if (account.me?.billing && !account.me.user) {
+      URL.revokeObjectURL(url);
+      account.openSignIn();
       return;
     }
     try {
@@ -56,11 +65,18 @@ export default function Studio() {
       form.append("audio", wav, "audio.wav");
       form.append("dictionary", opts.dictionary);
       form.append("language", opts.language);
+      form.append("script", opts.script);
       const timer = setTimeout(() => setPhase({ kind: "working", step: 2, name: file.name }), 6000);
       const res = await fetch("/api/transcribe", { method: "POST", body: form });
       clearTimeout(timer);
-      const json = (await res.json()) as TranscribeResult & { error?: string };
+      const json = (await res.json()) as TranscribeResult & { error?: string; code?: string; needed?: number };
+      if (json.code === "signin") account.openSignIn();
+      if (json.code === "credits") {
+        account.setSeconds(json.seconds ?? 0);
+        account.openBuy(`This video needs ${minutesLabel(json.needed ?? 0)} and you have ${minutesLabel(json.seconds ?? 0)}.`);
+      }
       if (!res.ok) throw new Error(json.error ?? "Transcription failed.");
+      if (json.seconds !== undefined) account.setSeconds(json.seconds);
       if (!json.words.length) throw new Error("We couldn't hear any speech in this video.");
       const project: Project = { file, url, key, words: json.words, style: defaultStyle(), duration };
       save(project);

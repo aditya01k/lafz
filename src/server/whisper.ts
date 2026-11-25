@@ -1,14 +1,14 @@
-import type { Language } from "@/lib/languages";
+import type { Language, Script } from "@/lib/languages";
 
 export type TimedWord = { text: string; start: number; end: number };
 
-// A Roman Hinglish prompt nudges Whisper to write Hindi in Latin script
+// A Hindi-in-English-letters prompt nudges Whisper to write Hindi in Latin script
 // instead of Devanagari or Urdu; the spelling pass cleans up what's left.
 const PROMPT =
   "Haan bhai, toh aaj hum Goa ja rahe hain. Yeh jagah ekdum mast hai, trust me. Chalo shuru karte hain!";
 
 /** Whisper is the timing source: it's the only hosted engine here with per-word timestamps. */
-export async function whisperWords(wav: Uint8Array, language: Language): Promise<TimedWord[]> {
+export async function whisperWords(wav: Uint8Array, language: Language, script: Script): Promise<TimedWord[]> {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY is not set");
   const form = new FormData();
@@ -16,8 +16,8 @@ export async function whisperWords(wav: Uint8Array, language: Language): Promise
   form.append("model", "whisper-1");
   form.append("response_format", "verbose_json");
   form.append("timestamp_granularities[]", "word");
-  // The Roman Hinglish prompt only helps Hindi; for other languages Sarvam writes the text.
-  if (language.sarvam === "hi-IN" && language.script === "roman") form.append("prompt", PROMPT);
+  // The English-letters Hindi prompt only helps that case; otherwise Sarvam writes the text.
+  if (language.id === "hindi" && script === "latin") form.append("prompt", PROMPT);
   const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}` },
