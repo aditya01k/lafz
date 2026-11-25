@@ -1,0 +1,24 @@
+{
+  "id": "boxed",
+  "name": "Boxed",
+  "blurb": "The spoken word in a yellow box",
+  "bestFor": "Tutorials and tips",
+  "credit": {
+    "name": "Aditya Sharma"
+  },
+  "style": {
+    "outline": false,
+    "shadow": true,
+    "shadowColor": "#00000066",
+    "shadowBlur": 0.25,
+    "font": "poppins",
+    "weight": 700,
+    "size": 0.062,
+    "wordsPerLine": 3,
+    "highlight": "box",
+    "highlightColor": "#ffd84d",
+    "radius": 0.18,
+    "animation": "none",
+    "y": 0.68
+  }
+}

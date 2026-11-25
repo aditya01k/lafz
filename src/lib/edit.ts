@@ -229,3 +229,46 @@ export function insertCaption(words: Word[], t: number, text: string, dur = 1.5)
 export function fromCues(cues: { start: number; end: number; text: string }[]): Word[] {
   return cues.flatMap((c) => spread(c.text, c.start, c.end, c.end));
 }
+
+// ---- Bulk edits ----
+
+/** Moves every caption (or just these) by delta seconds: the fix for audio that's out of sync. */
+export function shiftWords(words: Word[], delta: number, only?: Set<string>): Word[] {
+  const pick = (w: Word) => !only || only.has(w.id);
+  const first = words.find(pick);
+  if (!first) return words;
+  const d = Math.max(delta, -first.start);
+  return words.map((w) => (pick(w) ? { ...w, start: w.start + d, end: w.end + d, ...(w.outAt !== undefined ? { outAt: w.outAt + d } : {}) } : w));
+}
+
+export function deleteCaptions(words: Word[], lines: Span[]): Word[] {
+  if (!lines.length) return words;
+  const gone = new Set(lines.flatMap((l) => l.words.map((w) => w.id)));
+  return pin(words, after(words, lines.at(-1)!)).filter((w) => !gone.has(w.id));
+}
+
+/** Joins a run of neighbouring captions into one. */
+export function mergeCaptions(words: Word[], lines: Span[]): Word[] {
+  if (lines.length < 2) return words;
+  const lastIds = new Set(lines.slice(0, -1).map((l) => l.words.at(-1)!.id));
+  const rest = new Set(lines.slice(1).flatMap((l) => l.words.map((w) => w.id)));
+  const out = words.map((w) => {
+    let x = w;
+    if (lastIds.has(w.id)) x = { ...x, outAt: undefined };
+    if (rest.has(w.id)) x = { ...x, breakBefore: false, keepWithPrev: true };
+    return x;
+  });
+  return pin(out, lines[0].words[0].id, after(words, lines.at(-1)!));
+}
+
+/** Closes gaps shorter than maxGap by holding each caption until the next one (less flicker). */
+export function closeGaps(words: Word[], lines: Span[], maxGap: number, keep = 0): Word[] {
+  let out = words;
+  lines.forEach((l, i) => {
+    const next = lines[i + 1];
+    if (!next) return;
+    const gap = next.start - l.end;
+    if (gap > keep + 0.0005 && gap <= maxGap) out = trimCaption(out, l, "out", next.start - keep, true);
+  });
+  return out;
+}

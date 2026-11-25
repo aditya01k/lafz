@@ -1,0 +1,24 @@
+{
+  "id": "podcast",
+  "name": "Podcast",
+  "blurb": "Two calm lines, unsaid words dimmed",
+  "bestFor": "Podcasts and interviews",
+  "credit": {
+    "name": "Aditya Sharma"
+  },
+  "style": {
+    "outline": false,
+    "shadow": true,
+    "shadowColor": "#00000080",
+    "shadowBlur": 0.3,
+    "font": "geist",
+    "weight": 600,
+    "size": 0.05,
+    "wordsPerLine": 7,
+    "highlight": "none",
+    "dim": 0.45,
+    "animation": "none",
+    "y": 0.76,
+    "maxWidth": 0.8
+  }
+}

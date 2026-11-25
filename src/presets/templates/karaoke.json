@@ -1,0 +1,25 @@
+{
+  "id": "karaoke",
+  "name": "Karaoke",
+  "blurb": "Words light up as they're said",
+  "bestFor": "Talking to camera",
+  "credit": {
+    "name": "Aditya Sharma"
+  },
+  "style": {
+    "outline": false,
+    "shadow": true,
+    "shadowColor": "#00000080",
+    "shadowBlur": 0.3,
+    "font": "montserrat",
+    "weight": 800,
+    "size": 0.058,
+    "wordsPerLine": 4,
+    "highlight": "color",
+    "highlightScope": "spoken",
+    "highlightColor": "#8cf5b4",
+    "dim": 0.5,
+    "animation": "none",
+    "y": 0.7
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "subtitle",
+  "name": "Subtitle",
+  "blurb": "Classic subtitles on a soft band",
+  "bestFor": "YouTube and long videos",
+  "credit": {
+    "name": "Aditya Sharma"
+  },
+  "style": {
+    "outline": false,
+    "shadow": false,
+    "font": "sfpro",
+    "weight": 600,
+    "size": 0.04,
+    "wordsPerLine": 8,
+    "highlight": "none",
+    "background": "line",
+    "backgroundColor": "#000000",
+    "backgroundOpacity": 0.55,
+    "radius": 0.16,
+    "animation": "none",
+    "y": 0.84,
+    "maxWidth": 0.9
+  }
+}

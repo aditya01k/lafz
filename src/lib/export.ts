@@ -72,10 +72,10 @@ export async function exportOverlay(
   style: Style,
   onProgress: Progress,
   signal?: AbortSignal,
+  fps = 30,
 ): Promise<Blob> {
   await loadFonts(style, allText(lines));
   const { width, height } = even(size);
-  const fps = 30;
   const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext("2d", { alpha: mode === "alpha" })!;
   const output = new Output({
@@ -127,4 +127,55 @@ export function download(blob: Blob, name: string) {
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/**
+ * Captions as numbered PNGs with transparency, zipped. Every editor imports an image sequence
+ * with alpha (Premiere, Resolve, Final Cut, After Effects), unlike WebM alpha. Frames without
+ * a caption are left out of the drawing work but kept in the sequence as blanks so timing holds.
+ */
+export async function exportPngSequence(
+  duration: number,
+  size: { width: number; height: number },
+  lines: Line[],
+  style: Style,
+  onProgress: Progress,
+  signal: AbortSignal | undefined,
+  fps: number,
+  name: string,
+): Promise<Blob> {
+  await loadFonts(style, allText(lines));
+  const { Zip, ZipPassThrough } = await import("fflate");
+  const { width, height } = even(size);
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext("2d")!;
+  const chunks: Uint8Array[] = [];
+  let failed: Error | null = null;
+  const zip = new Zip((err, data) => {
+    if (err) failed = err;
+    else chunks.push(data);
+  });
+  const frames = Math.ceil(duration * fps);
+  const digits = String(frames).length;
+  let blank: Uint8Array | null = null;
+  for (let f = 0; f < frames; f++) {
+    if (signal?.aborted) throw new DOMException("Export cancelled", "AbortError");
+    if (failed) throw failed;
+    const t = f / fps;
+    ctx.clearRect(0, 0, width, height);
+    const box = drawCaptions(ctx, width, height, t, lines, style);
+    let png: Uint8Array;
+    if (!box) {
+      if (!blank) blank = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
+      png = blank;
+    } else png = new Uint8Array(await (await canvas.convertToBlob({ type: "image/png" })).arrayBuffer());
+    // PNG is already compressed: store it as is.
+    const file = new ZipPassThrough(`${name}_${String(f).padStart(digits, "0")}.png`);
+    zip.add(file);
+    file.push(png, true);
+    if (f % 10 === 0) onProgress(f / frames);
+  }
+  zip.end();
+  onProgress(1);
+  return new Blob(chunks as BlobPart[], { type: "application/zip" });
 }

@@ -1,0 +1,24 @@
+{
+  "id": "one-word",
+  "name": "One word",
+  "blurb": "One big word at a time",
+  "bestFor": "Hooks and fast cuts",
+  "credit": {
+    "name": "Aditya Sharma"
+  },
+  "style": {
+    "outline": false,
+    "shadow": true,
+    "shadowColor": "#00000080",
+    "shadowBlur": 0.4,
+    "font": "montserrat",
+    "weight": 900,
+    "case": "upper",
+    "size": 0.1,
+    "wordsPerLine": 1,
+    "highlight": "none",
+    "highlightColor": "#ffe14d",
+    "animation": "pop",
+    "y": 0.6
+  }
+}

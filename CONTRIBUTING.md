@@ -4,15 +4,18 @@ lafz is open source so captions for Indian languages get better for everyone. Th
 
 ## 1. Add a caption style
 
-Styles are plain JSON files in [`src/presets/`](src/presets/), credited to whoever made them.
+Looks are plain JSON files, credited to whoever made them. The four presets editors start from
+live in [`src/presets/`](src/presets/); the templates people pick in Simple mode live in
+[`src/presets/templates/`](src/presets/templates/). New looks go in templates.
 
-1. Copy one, e.g. `src/presets/headline.json`, to `src/presets/<your-style>.json`.
-2. Change `id`, `name`, `blurb` and `credit` (your name, and a link if you like).
+1. Copy one, e.g. `src/presets/templates/boxed.json`, to `src/presets/templates/<your-look>.json`.
+2. Change `id`, `name`, `blurb`, `bestFor` (who it's for, e.g. "Podcasts and interviews") and
+   `credit` (your name, and a link if you like).
 3. Change any `style` fields. Everything you leave out uses the defaults in `BASE` in
    [`src/lib/templates.ts`](src/lib/templates.ts), where each field is explained.
-4. Add your file to the list in `src/presets/index.ts`.
-5. Run `pnpm dev`, check it in the editor's Style tab on a real reel, and open a pull request
-   with a screenshot.
+4. Add your file to the list in `src/presets/templates/index.ts`.
+5. Run `pnpm dev`, check it in Simple mode on a real reel, and open a pull request with a
+   screenshot.
 
 Fonts must be free to redistribute (Google Fonts is easiest: add it in `src/app/fonts.ts` and
 `src/lib/fonts.ts`). Paid fonts can't be included; people can upload their own copies in the editor.

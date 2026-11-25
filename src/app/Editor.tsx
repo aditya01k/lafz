@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { deleteCaption, fromCues, insertCaption, mergeWithNext, splitAt, trimEdge } from "@/lib/edit";
+import { deleteCaptions, fromCues, insertCaption, mergeCaptions, splitAt, trimEdge } from "@/lib/edit";
 import { parseSubtitles, type Line } from "@/lib/lines";
+import { checkAll, DEFAULT_QC, type QcRules } from "@/lib/qc";
 import { drawCaptions, linesFor, loadFonts, type Box, type Style } from "@/lib/templates";
 import type { Word } from "@/lib/types";
 import { AccountButton } from "./Account";
 import CaptionList from "./editor/CaptionList";
-import { clock } from "./editor/time";
+import Simple from "./editor/Simple";
+import { formatTime, type Timecode } from "./editor/time";
 import Timeline from "./editor/Timeline";
 import Transcript from "./editor/Transcript";
 import ExportDialog from "./ExportDialog";
@@ -16,7 +18,22 @@ import type { Project } from "./Studio";
 
 type Tab = "captions" | "transcript" | "style";
 type Guides = "off" | "safe" | "reels";
-const FRAME = 1 / 30;
+type Mode = "pro" | "simple";
+
+/** Per-browser editor preferences. */
+function pref<T>(key: string, fallback: T): T {
+  try {
+    const v = localStorage.getItem(`lafz:${key}`);
+    return v ? (JSON.parse(v) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function savePref(key: string, v: unknown) {
+  try {
+    localStorage.setItem(`lafz:${key}`, JSON.stringify(v));
+  } catch {}
+}
 
 const KEYS: [string, string][] = [
   ["Space / K", "Play or pause"],
@@ -28,7 +45,12 @@ const KEYS: [string, string][] = [
   ["⌘K or C", "Split the caption at the playhead"],
   ["M", "Merge the caption with the next one"],
   ["N", "Add a caption at the playhead"],
-  ["⌫", "Delete the selected caption"],
+  ["⌫", "Delete the selected caption(s)"],
+  ["⇧ click", "Select a run of captions"],
+  ["⇧ Space", "Play just the selected caption"],
+  ["Tab / ⇧ Tab", "Next or previous caption's text"],
+  ["S", "Snapping on or off"],
+  ["T", "Timecode in seconds or frames"],
   ["= / −", "Zoom the timeline in or out"],
   ["\\", "Fit the whole video in the timeline"],
   ["⌘Z / ⇧⌘Z", "Undo / redo"],
@@ -54,12 +76,63 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
   const [keysOpen, setKeysOpen] = useState(false);
   const [note, setNote] = useState("");
   const [snapX, setSnapX] = useState(false);
+  const [mode, setModeRaw] = useState<Mode>(() => pref<Mode>("mode", "pro"));
+  const [tcMode, setTcModeRaw] = useState<Timecode["mode"]>(() => pref<Timecode["mode"]>("timecode", "frames"));
+  const [qc, setQcRaw] = useState<QcRules>(() => ({ ...DEFAULT_QC, ...pref<Partial<QcRules>>("qc", {}) }));
+  const [fps, setFps] = useState(30);
+  const [fpsKnown, setFpsKnown] = useState(false);
+  const [snapping, setSnapping] = useState(true);
+  const [anchor, setAnchor] = useState(-1);
+  const [rate, setRate] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const playUntil = useRef<number | null>(null);
+  const setMode = (m: Mode) => {
+    setModeRaw(m);
+    savePref("mode", m);
+  };
+  const setTcMode = (m: Timecode["mode"]) => {
+    setTcModeRaw(m);
+    savePref("timecode", m);
+  };
+  const setQc = (q: QcRules) => {
+    setQcRaw(q);
+    savePref("qc", { maxCps: q.maxCps, minDuration: q.minDuration, maxDuration: q.maxDuration, maxChars: q.maxChars });
+  };
   const video = useRef<HTMLVideoElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const importer = useRef<HTMLInputElement>(null);
 
   const lines = useMemo(() => linesFor(words, style), [words, style]);
   const duration = project.duration;
+  const tc: Timecode = useMemo(() => ({ mode: tcMode, fps }), [tcMode, fps]);
+  const issues = useMemo(() => checkAll(lines, { ...qc, fps }), [lines, qc, fps]);
+  const FRAME = 1 / fps;
+
+  // The video's real frame rate, so timecodes, frame steps and exports match the footage.
+  useEffect(() => {
+    let off = false;
+    void (async () => {
+      try {
+        const { Input, BlobSource, ALL_FORMATS } = await import("mediabunny");
+        const input = new Input({ source: new BlobSource(project.file), formats: ALL_FORMATS });
+        const track = await input.getPrimaryVideoTrack();
+        const stats = await track?.computePacketStats(120);
+        const r = stats?.averagePacketRate;
+        if (!off && r && r > 5 && r < 241) {
+          // Snap to the standard rate it's closest to (29.97 reads as 29.96…).
+          const std = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 120, 240];
+          const near = std.reduce((a, b) => (Math.abs(b - r) < Math.abs(a - r) ? b : a));
+          setFps(Math.abs(near - r) < 0.2 ? near : Math.round(r * 1000) / 1000);
+          setFpsKnown(true);
+        }
+      } catch {
+        // Unknown container: stay on 30.
+      }
+    })();
+    return () => {
+      off = true;
+    };
+  }, [project.file]);
 
   const setWords = useCallback(
     (next: Word[]) => {
@@ -140,6 +213,10 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
         const ctx = c.getContext("2d")!;
         ctx.clearRect(0, 0, c.width, c.height);
         boxRef.current = drawCaptions(ctx, c.width, c.height, v.currentTime, linesRef.current, styleRef.current);
+        if (playUntil.current !== null && v.currentTime >= playUntil.current) {
+          v.pause();
+          playUntil.current = null;
+        }
         setTime(v.currentTime);
       }
       raf = requestAnimationFrame(tick);
@@ -195,12 +272,27 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
   const toggle = useCallback(() => {
     const v = video.current;
     if (!v) return;
-    v.playbackRate = 1;
+    v.playbackRate = rate;
+    playUntil.current = null;
     void (v.paused ? v.play() : v.pause());
-  }, []);
+  }, [rate]);
 
   const current = lines.findIndex((l) => time >= l.start && time < l.end);
   const target = selected >= 0 && selected < lines.length ? selected : current;
+  const range = useMemo<[number, number] | null>(
+    () => (anchor >= 0 && selected >= 0 && anchor !== selected && anchor < lines.length ? [Math.min(anchor, selected), Math.min(lines.length - 1, Math.max(anchor, selected))] : null),
+    [anchor, selected, lines.length],
+  );
+  const picked = useMemo(() => (range ? lines.slice(range[0], range[1] + 1) : target >= 0 ? [lines[target]] : []), [range, lines, target]);
+  const select = useCallback(
+    (i: number, extend?: boolean) => {
+      if (extend && selected >= 0) {
+        if (anchor < 0) setAnchor(selected);
+      } else setAnchor(-1);
+      setSelected(i);
+    },
+    [selected, anchor],
+  );
 
   // Caption commands, shared by the toolbar, the panels and the keyboard.
   const cmd = useMemo(
@@ -220,18 +312,32 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
         setSelected(linesFor(next, style).findIndex((l) => Math.abs(l.start - time) < 0.01));
       },
       merge: () => {
+        if (range) {
+          setWords(mergeCaptions(words, picked));
+          setSelected(range[0]);
+          return setAnchor(-1);
+        }
         if (target < 0 || target >= lines.length - 1) return;
-        setWords(mergeWithNext(words, lines[target], lines[target + 1]));
+        setWords(mergeCaptions(words, [lines[target], lines[target + 1]]));
       },
       remove: () => {
-        if (target < 0) return;
-        setWords(deleteCaption(words, lines[target]));
+        if (!picked.length) return;
+        setWords(deleteCaptions(words, picked));
         setSelected(-1);
+        setAnchor(-1);
+      },
+      playSelection: () => {
+        const v = video.current;
+        if (!v || !picked.length) return;
+        v.currentTime = picked[0].start + 0.001;
+        playUntil.current = picked.at(-1)!.end;
+        v.playbackRate = rate;
+        void v.play();
       },
       setIn: () => target >= 0 && setWords(trimEdge(words, lines[target], "in", time, lines[target - 1], lines[target + 1])),
       setOut: () => target >= 0 && setWords(trimEdge(words, lines[target], "out", time, lines[target - 1], lines[target + 1])),
     }),
-    [words, time, lines, target, current, selected, style, setWords],
+    [words, time, lines, target, current, selected, style, setWords, range, picked, rate],
   );
 
   const zoomBy = useCallback(
@@ -263,7 +369,8 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
       const handled = () => e.preventDefault();
       if (k === " " || k === "k" || k === "K") {
         handled();
-        if (k === " ") toggle();
+        if (k === " " && e.shiftKey) cmd.playSelection();
+        else if (k === " ") toggle();
         else v?.pause();
       } else if (k === "l" || k === "L") {
         handled();
@@ -291,7 +398,7 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
         }
         i = Math.min(lines.length - 1, Math.max(0, i));
         if (lines[i]) {
-          setSelected(i);
+          select(i, e.shiftKey);
           seek(lines[i].start);
         }
       } else if (k === "i" || k === "I") {
@@ -300,6 +407,13 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
       } else if (k === "o" || k === "O") {
         handled();
         cmd.setOut();
+      } else if (k === "s" || k === "S") {
+        handled();
+        setSnapping((x) => !x);
+        setNote(snapping ? "Snapping off" : "Snapping on");
+      } else if (k === "t" || k === "T") {
+        handled();
+        setTcMode(tcMode === "frames" ? "seconds" : "frames");
       } else if (k === "c" || k === "C") {
         handled();
         cmd.split();
@@ -322,6 +436,7 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
         handled();
         setZoom(0);
       } else if (k === "Escape") {
+        setAnchor(-1);
         setSelected(-1);
         setSelectedWord(null);
         setKeysOpen(false);
@@ -331,7 +446,7 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, cmd, toggle, seek, time, lines, target, selected, zoomBy]);
+  }, [undo, redo, cmd, toggle, seek, time, lines, target, selected, zoomBy, select, snapping, tcMode, FRAME]);
 
   // Drag the caption around on the video. A click anywhere else plays or pauses.
   const drag = useRef<{ x0: number; y0: number; sx: number; sy: number; moved: boolean } | null>(null);
@@ -345,6 +460,7 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
   };
 
   const sel = selectedWord ? words.find((w) => w.id === selectedWord) : undefined;
+  const sample = useMemo(() => words.slice(0, 4).map((w) => w.text).join(" ") || "kya scene hai bhai", [words]);
   const iconBtn = "flex size-9 items-center justify-center rounded-full text-muted hover:bg-white/5 hover:text-foreground disabled:opacity-30";
   const tool = "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium text-foreground/85 hover:bg-white/10 disabled:opacity-30";
 
@@ -362,10 +478,24 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
           <span className="shrink-0 rounded-full bg-white/5 px-2 py-0.5 text-[11px]">Saved on this device</span>
         </span>
         <span className="flex-1 sm:hidden" />
+        <div className="flex rounded-full border border-hairline p-0.5 text-[12px]" title="Simple: pick a look and export. Pro: timeline, timecode, QC.">
+          {(["simple", "pro"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => {
+                setMode(m);
+                snapFrame();
+              }}
+              className={`rounded-full px-3 py-1 font-medium capitalize ${mode === m ? "bg-white/10 text-foreground" : "text-muted hover:text-foreground"}`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
         <button
           onClick={() => importer.current?.click()}
           title="Replace captions with an SRT or VTT file"
-          className="hidden h-8 rounded-full px-3 text-[13px] text-muted hover:bg-white/5 hover:text-foreground sm:block"
+          className={`hidden h-8 rounded-full px-3 text-[13px] text-muted hover:bg-white/5 hover:text-foreground ${mode === "pro" ? "sm:block" : ""}`}
         >
           Import SRT
         </button>
@@ -385,7 +515,7 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
             setNote(`Imported ${cues.length} captions · ⌘Z to undo`);
           }}
         />
-        <button onClick={() => setKeysOpen(true)} title="Keyboard shortcuts (?)" className={`${iconBtn} hidden sm:flex`}>
+        <button onClick={() => setKeysOpen(true)} title="Keyboard shortcuts (?)" className={`${iconBtn} hidden ${mode === "pro" ? "sm:flex" : ""}`}>
           <Icon d="M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M8 14h8" />
         </button>
         <AccountButton />
@@ -398,7 +528,7 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
         <button
           onClick={() => setExporting(true)}
           disabled={!size}
-          className="ml-1 flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-[14px] font-semibold text-accent-ink disabled:opacity-40"
+          className="ml-1 hidden items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-[14px] font-semibold text-accent-ink disabled:opacity-40"
         >
           <Icon d="M12 4v12M6 10l6 6 6-6M4 20h16" className="size-4" />
           Export
@@ -491,65 +621,162 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
 
         {/* Panels */}
         <aside className="flex min-h-0 flex-1 flex-col border-t border-hairline bg-surface lg:w-[420px] lg:flex-none lg:border-l lg:border-t-0">
-          <div className="flex gap-1 border-b border-hairline p-2">
-            {(["captions", "transcript", "style"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => {
-                  setTab(t);
-                  if (t === "style") snapFrame();
-                }}
-                className={`flex-1 rounded-lg py-2 text-[14px] font-medium capitalize ${tab === t ? "bg-raised text-foreground" : "text-muted hover:text-foreground"}`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {tab === "captions" && (
-              <CaptionList
-                lines={lines}
-                words={words}
-                setWords={setWords}
-                selected={selected}
-                onSelect={setSelected}
-                activeLine={current}
-                onSeek={seek}
-                style={style}
-                setStyle={setStyle}
-                onFix={reportFix}
-              />
-            )}
-            {tab === "transcript" && (
-              <Transcript
-                lines={lines}
-                activeLine={current}
-                selected={sel}
-                onSelect={(w) => {
-                  setSelectedWord(w?.id ?? null);
-                  if (w) seek(w.start);
-                }}
-                onSeek={seek}
-                time={time}
-                words={words}
-                setWords={setWords}
-                onFix={reportFix}
-              />
-            )}
-            {tab === "style" && <StylePanel style={style} onChange={setStyle} frame={frame} />}
-          </div>
+          {mode === "simple" ? (
+            <>
+              <div className="flex gap-1 border-b border-hairline p-2">
+                {(["style", "transcript"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTab(t)}
+                    className={`flex-1 rounded-lg py-2 text-[14px] font-medium ${(tab === "transcript") === (t === "transcript") ? "bg-raised text-foreground" : "text-muted hover:text-foreground"}`}
+                  >
+                    {t === "style" ? "Look" : "Fix words"}
+                  </button>
+                ))}
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {tab === "transcript" ? (
+                  <Transcript
+                    lines={lines}
+                    activeLine={current}
+                    selected={sel}
+                    onSelect={(w) => {
+                      setSelectedWord(w?.id ?? null);
+                      if (w) seek(w.start);
+                    }}
+                    onSeek={seek}
+                    time={time}
+                    words={words}
+                    setWords={setWords}
+                    onFix={reportFix}
+                  />
+                ) : (
+                  <Simple style={style} setStyle={setStyle} frame={frame} sample={sample} onExport={() => setExporting(true)} />
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex gap-1 border-b border-hairline p-2">
+                {(["captions", "transcript", "style"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => {
+                      setTab(t);
+                      if (t === "style") snapFrame();
+                    }}
+                    className={`flex-1 rounded-lg py-2 text-[14px] font-medium capitalize ${tab === t ? "bg-raised text-foreground" : "text-muted hover:text-foreground"}`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {tab === "captions" && (
+                  <CaptionList
+                    lines={lines}
+                    words={words}
+                    setWords={setWords}
+                    selected={selected}
+                    range={range}
+                    onSelect={select}
+                    activeLine={current}
+                    onSeek={seek}
+                    style={style}
+                    setStyle={setStyle}
+                    onFix={reportFix}
+                    tc={tc}
+                    issues={issues}
+                    qc={qc}
+                    setQc={setQc}
+                  />
+                )}
+                {tab === "transcript" && (
+                  <Transcript
+                    lines={lines}
+                    activeLine={current}
+                    selected={sel}
+                    onSelect={(w) => {
+                      setSelectedWord(w?.id ?? null);
+                      if (w) seek(w.start);
+                    }}
+                    onSeek={seek}
+                    time={time}
+                    words={words}
+                    setWords={setWords}
+                    onFix={reportFix}
+                  />
+                )}
+                {tab === "style" && <StylePanel style={style} onChange={setStyle} frame={frame} />}
+              </div>
+            </>
+          )}
         </aside>
       </div>
 
       {/* Transport and timeline */}
+      {mode === "simple" ? (
+        <footer className="flex shrink-0 items-center gap-3 border-t border-hairline bg-surface px-4 py-3">
+          <button onClick={toggle} className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-[12px] text-black" aria-label={playing ? "Pause" : "Play"}>
+            {playing ? "❚❚" : "▶"}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={duration}
+            step={0.01}
+            value={time}
+            onChange={(e) => seek(Number(e.target.value))}
+            aria-label="Position in the video"
+            className="min-w-0 flex-1 accent-[var(--accent)]"
+          />
+          <span className="shrink-0 text-[12px] tabular-nums text-muted">
+            {formatTime(time, { mode: "seconds", fps })} / {formatTime(duration, { mode: "seconds", fps })}
+          </span>
+        </footer>
+      ) : (
       <footer className="shrink-0 border-t border-hairline bg-surface px-3 pb-3 pt-2">
         <div className="mb-2 flex items-center gap-1 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&>*]:shrink-0">
           <button onClick={toggle} className="flex size-8 items-center justify-center rounded-full bg-white text-[12px] text-black" aria-label={playing ? "Pause" : "Play"}>
             {playing ? "❚❚" : "▶"}
           </button>
-          <span className="ml-1.5 mr-2 text-[12px] tabular-nums text-muted">
-            <span className="text-foreground">{clock(time)}</span> / {clock(duration)}
-          </span>
+          <button
+            onClick={() => setTcMode(tcMode === "frames" ? "seconds" : "frames")}
+            title={`${fpsKnown ? `${fps} fps from your video` : "Frame rate unknown, assuming 30"} · click or T to switch`}
+            className="ml-1 mr-1 rounded-md px-1.5 py-1 text-[12px] tabular-nums text-muted hover:bg-white/5"
+          >
+            <span className="text-foreground">{formatTime(time, tc)}</span> / {formatTime(duration, tc)}
+            {tcMode === "frames" && <span className="ml-1.5 text-[10px]">{fps}</span>}
+          </button>
+          <select
+            value={rate}
+            onChange={(e) => {
+              const r = Number(e.target.value);
+              setRate(r);
+              if (video.current) video.current.playbackRate = r;
+            }}
+            title="Playback speed"
+            className="h-7 rounded-md border border-hairline bg-transparent px-1 text-[11px] text-muted outline-none"
+          >
+            {[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => (
+              <option key={r} value={r}>
+                {r}×
+              </option>
+            ))}
+          </select>
+          <button
+            className={tool}
+            onClick={() => {
+              setMuted(!muted);
+              if (video.current) video.current.muted = !muted;
+            }}
+            title="Mute"
+          >
+            {muted ? "Unmute" : "Mute"}
+          </button>
+          <button className={tool} onClick={cmd.playSelection} disabled={!picked.length} title="Play the selected caption (⇧Space)">
+            Play sel.
+          </button>
           <span className="mx-1 h-5 w-px bg-hairline" />
           <button className={tool} onClick={cmd.split} title="Split at playhead (⌘K)">
             Split
@@ -557,7 +784,7 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
           <button className={tool} onClick={cmd.add} title="Add a caption at the playhead (N)">
             Add
           </button>
-          <button className={tool} onClick={cmd.merge} disabled={target < 0 || target >= lines.length - 1} title="Merge with next (M)">
+          <button className={tool} onClick={cmd.merge} disabled={!range && (target < 0 || target >= lines.length - 1)} title="Merge with next, or the selected run (M)">
             Merge
           </button>
           <button className={tool} onClick={cmd.setIn} disabled={target < 0} title="Set in point to playhead (I)">
@@ -566,7 +793,7 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
           <button className={tool} onClick={cmd.setOut} disabled={target < 0} title="Set out point to playhead (O)">
             Out
           </button>
-          <button className={`${tool} text-red-300`} onClick={cmd.remove} disabled={target < 0} title="Delete caption (⌫)">
+          <button className={`${tool} text-red-300`} onClick={cmd.remove} disabled={!picked.length} title="Delete caption(s) (⌫)">
             Delete
           </button>
           {note && <span className="ml-2 rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-foreground">{note}</span>}
@@ -584,6 +811,9 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
             ))}
           </div>
           <span className="mx-1 h-5 w-px bg-hairline" />
+          <button className={`${tool} ${snapping ? "text-accent" : ""}`} onClick={() => setSnapping(!snapping)} title="Snap edges to the playhead and other captions (S)">
+            Snap
+          </button>
           <button className={tool} onClick={() => zoomBy(1 / 1.6)} title="Zoom out (−)">
             −
           </button>
@@ -601,10 +831,13 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
           time={time}
           peaks={peaks}
           selected={selected}
-          onSelect={(i) => {
-            setSelected(i);
+          onSelect={(i, extend) => {
+            select(i, extend);
             if (tab === "transcript") setTab("captions");
           }}
+          tc={tc}
+          snapping={snapping}
+          range={range}
           onSeek={seek}
           onLive={setWordsRaw}
           onCommit={(base) => {
@@ -615,6 +848,7 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
           setZoom={setZoom}
         />
       </footer>
+      )}
 
       {keysOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setKeysOpen(false)}>
@@ -640,7 +874,17 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
       )}
 
       {exporting && size && (
-        <ExportDialog file={project.file} size={size} duration={duration} lines={lines} words={words} style={style} onClose={() => setExporting(false)} />
+        <ExportDialog
+          file={project.file}
+          size={size}
+          duration={duration}
+          lines={lines}
+          words={words}
+          style={style}
+          fps={fpsKnown ? fps : undefined}
+          simple={mode === "simple"}
+          onClose={() => setExporting(false)}
+        />
       )}
     </div>
   );

@@ -113,11 +113,11 @@ export function AccountButton() {
     <div className="relative">
       <button
         onClick={() => setMenu((m) => !m)}
-        className="flex h-8 items-center gap-2 rounded-full border border-hairline px-3 text-[13px] hover:border-white/20"
+        className="flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-hairline px-3 text-[13px] hover:border-white/20"
       >
         <span className="size-1.5 rounded-full bg-accent" />
         <span className="tabular-nums">{minutesLabel(me.seconds ?? 0)}</span>
-        <span className="text-muted">left</span>
+        <span className="hidden text-muted sm:inline">left</span>
       </button>
       {menu && (
         <div className="absolute top-10 right-0 z-40 w-60 rounded-xl border border-hairline bg-surface p-1.5 shadow-2xl" onMouseLeave={() => setMenu(false)}>

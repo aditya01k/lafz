@@ -1,0 +1,23 @@
+{
+  "id": "lowercase",
+  "name": "Lowercase",
+  "blurb": "Small, lowercase, out of the way",
+  "bestFor": "Aesthetic and lifestyle",
+  "credit": {
+    "name": "Aditya Sharma"
+  },
+  "style": {
+    "outline": false,
+    "shadow": true,
+    "shadowColor": "#00000080",
+    "shadowBlur": 0.3,
+    "font": "jakarta",
+    "weight": 600,
+    "case": "lower",
+    "size": 0.048,
+    "wordsPerLine": 4,
+    "highlight": "none",
+    "animation": "fade",
+    "y": 0.78
+  }
+}

@@ -16,6 +16,7 @@
   "dependencies": {
     "better-auth": "1.7.10",
     "dodopayments": "2.56.1",
+    "fflate": "0.8.2",
     "mediabunny": "^1.66.4",
     "next": "16.4.6",
     "openai": "^7.64.0",

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { moveCaption, trimEdge } from "@/lib/edit";
 import type { Line } from "@/lib/lines";
 import type { Word } from "@/lib/types";
-import { clock } from "./time";
+import { clock, formatTime, toFrame, type Timecode } from "./time";
 
 /**
  * The caption track, like Premiere's: a ruler, the audio waveform, and one block per caption.
@@ -29,6 +29,9 @@ export default function Timeline({
   onCommit,
   zoom,
   setZoom,
+  tc,
+  snapping,
+  range,
 }: {
   lines: Line[];
   words: Word[];
@@ -37,7 +40,7 @@ export default function Timeline({
   /** Loudness per 10 ms, 0–1. */
   peaks: Float32Array | null;
   selected: number;
-  onSelect: (i: number) => void;
+  onSelect: (i: number, extend?: boolean) => void;
   onSeek: (t: number) => void;
   /** A drag in progress: show it, don't keep it in history yet. */
   onLive: (w: Word[]) => void;
@@ -46,6 +49,10 @@ export default function Timeline({
   /** Pixels per second; 0 = fit the whole video. */
   zoom: number;
   setZoom: (z: number) => void;
+  tc: Timecode;
+  /** Edges snap to the playhead and other captions (S toggles). */
+  snapping: boolean;
+  range: [number, number] | null;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const wave = useRef<HTMLCanvasElement>(null);
@@ -106,7 +113,13 @@ export default function Timeline({
   }, [peaks, width, l0, pps]);
 
   /** Snaps t to the playhead or any caption edge within a few pixels. */
-  const snap = (t: number, skip: Line) => {
+  const snap = (raw: number, skip: Line) => {
+    // Every edit lands on a frame, as in any NLE.
+    const t = toFrame(raw, tc.fps);
+    if (!snapping) {
+      setSnapAt(null);
+      return t;
+    }
     const targets = [time, 0, duration];
     for (const l of lines) if (l !== skip && l.words[0].id !== skip.words[0].id) targets.push(l.start, l.end);
     let best = t;
@@ -132,10 +145,14 @@ export default function Timeline({
     d.moved = true;
     const dt = dx / pps;
     if (d.kind === "move") {
-      // Snap whichever edge is closer to something.
+      // Snap whichever edge is closer to something (the start, unless only the end is near one).
       const s1 = snap(d.line.start + dt, d.line);
-      const startSnapped = s1 !== d.line.start + dt;
-      const delta = startSnapped ? s1 - d.line.start : snap(d.line.end + dt, d.line) - d.line.end;
+      const startHit = snapping && Math.abs(s1 - toFrame(d.line.start + dt, tc.fps)) > 1e-6;
+      const delta = startHit ? s1 - d.line.start : (() => {
+        const e1 = snap(d.line.end + dt, d.line);
+        const endHit = snapping && Math.abs(e1 - toFrame(d.line.end + dt, tc.fps)) > 1e-6;
+        return endHit ? e1 - d.line.end : s1 - d.line.start;
+      })();
       onLive(moveCaption(d.base, d.line, delta, d.prev, d.next));
     } else {
       const t = snap((d.kind === "in" ? d.line.start : d.line.end) + dt, d.line);
@@ -145,6 +162,7 @@ export default function Timeline({
 
   const grab = (e: React.PointerEvent, kind: "move" | "in" | "out", i: number) => {
     e.stopPropagation();
+    if (e.shiftKey) return onSelect(i, true);
     box.current!.setPointerCapture(e.pointerId);
     onSelect(i);
     drag.current = { kind, line: lines[i], prev: lines[i - 1], next: lines[i + 1], base: words, x0: e.clientX, moved: false };
@@ -196,7 +214,7 @@ export default function Timeline({
         >
           {ticks.map((t) => (
             <div key={t} className="absolute top-0 h-full border-l border-white/15 pl-1 text-[10px] leading-6 tabular-nums text-muted" style={{ left: X(t) }}>
-              {clock(t, step < 1)}
+              {tc.mode === "frames" ? formatTime(t, tc).slice(3) : clock(t, step < 1)}
             </div>
           ))}
         </div>
@@ -221,13 +239,13 @@ export default function Timeline({
         {visible.map(({ l, i }) => {
           const x = X(l.start);
           const w = Math.max(3, (l.end - l.start) * pps - 1);
-          const on = i === selected;
+          const on = i === selected || (!!range && i >= range[0] && i <= range[1]);
           return (
             <div
               key={l.words[0].id}
               onPointerDown={(e) => grab(e, "move", i)}
               onDoubleClick={() => onSeek(l.start)}
-              title={`${clock(l.start)} – ${clock(l.end)}`}
+              title={`${formatTime(l.start, tc)} – ${formatTime(l.end, tc)}`}
               className={`group absolute top-[34px] h-[46px] cursor-grab overflow-hidden rounded-md border text-[11px] leading-tight active:cursor-grabbing ${
                 on ? "border-accent bg-accent/30 text-foreground" : "border-white/15 bg-white/[0.12] text-foreground/85 hover:bg-white/20"
               }`}

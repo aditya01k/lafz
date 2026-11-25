@@ -77,17 +77,35 @@ const stamp = (s: number, sep: "," | ".") => {
   return `${p(h)}:${p(m)}:${p(sec)}${sep}${p(ms % 1000, 3)}`;
 };
 
-export function toSrt(lines: Line[]): string {
-  return lines
-    .map((l, i) => `${i + 1}\n${stamp(l.start, ",")} --> ${stamp(l.end, ",")}\n${l.words.map((w) => w.text).join(" ")}\n`)
-    .join("\n");
+export type SubOptions = { /** Wrap into lines of at most this many characters (0 = no wrap). */ maxLineChars?: number; maxLines?: number };
+
+/** Breaks a caption into balanced lines, as subtitle guides ask (e.g. 42 characters, 2 lines). */
+export function wrapText(text: string, { maxLineChars = 0, maxLines = 2 }: SubOptions = {}): string {
+  if (!maxLineChars || text.length <= maxLineChars) return text;
+  const words = text.split(" ");
+  const n = Math.min(maxLines, Math.ceil(text.length / maxLineChars));
+  const target = text.length / n;
+  const rows: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (cur && rows.length < n - 1 && (next.length > maxLineChars || next.length > target + 4)) {
+      rows.push(cur);
+      cur = w;
+    } else cur = next;
+  }
+  rows.push(cur);
+  return rows.join("\n");
 }
 
-export function toVtt(lines: Line[]): string {
-  return (
-    "WEBVTT\n\n" +
-    lines.map((l) => `${stamp(l.start, ".")} --> ${stamp(l.end, ".")}\n${l.words.map((w) => w.text).join(" ")}\n`).join("\n")
-  );
+const lineText = (l: Line, o?: SubOptions) => wrapText(l.words.map((w) => w.text).join(" "), o);
+
+export function toSrt(lines: Line[], o?: SubOptions): string {
+  return lines.map((l, i) => `${i + 1}\n${stamp(l.start, ",")} --> ${stamp(l.end, ",")}\n${lineText(l, o)}\n`).join("\n");
+}
+
+export function toVtt(lines: Line[], o?: SubOptions): string {
+  return "WEBVTT\n\n" + lines.map((l) => `${stamp(l.start, ".")} --> ${stamp(l.end, ".")}\n${lineText(l, o)}\n`).join("\n");
 }
 
 export function toText(words: Word[]): string {

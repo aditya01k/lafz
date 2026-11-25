@@ -1,6 +1,7 @@
 import { ensureFont, fontMeta, fontStack, isRtl, type FontId } from "./fonts";
 
 import { PRESET_FILES } from "@/presets";
+import { TEMPLATE_FILES } from "@/presets/templates";
 import { buildLines, lineAt, type Line } from "./lines";
 import type { Word } from "./types";
 
@@ -78,18 +79,25 @@ const BASE: Omit<Style, "preset"> = {
   animation: "pop", y: 0.66, x: 0.5, align: "center", maxWidth: 0.86, wordsPerLine: 3, maxChars: 0, minDuration: 0, gap: 0, stack: false, emojis: false,
 };
 
-export type Template = { id: TemplateId; name: string; blurb: string; credit?: { name: string; url?: string }; style: Style };
+export type Template = { id: TemplateId; name: string; blurb: string; bestFor?: string; credit?: { name: string; url?: string }; style: Style };
 
-// Presets live as JSON files in src/presets/ so anyone can contribute one (credited to them).
-export const TEMPLATES: Template[] = PRESET_FILES.map((f) => ({
+type PresetFile = { id: string; name: string; blurb: string; bestFor?: string; credit?: { name: string; url?: string }; style: object };
+const toTemplate = (f: PresetFile): Template => ({
   id: f.id,
   name: f.name,
   blurb: f.blurb,
+  bestFor: f.bestFor,
   credit: f.credit,
   style: { ...BASE, ...(f.style as Partial<Style>), preset: f.id },
-}));
+});
 
-export const templateById = (id: string) => TEMPLATES.find((x) => x.id === id) ?? TEMPLATES[0];
+// Presets live as JSON files in src/presets/ so anyone can contribute one (credited to them).
+/** The four presets editors start from in the Style tab. */
+export const TEMPLATES: Template[] = (PRESET_FILES as PresetFile[]).map(toTemplate);
+/** Every ready-made look: the presets plus the templates, for the simple picker. */
+export const LOOKS: Template[] = [...TEMPLATES, ...(TEMPLATE_FILES as PresetFile[]).map(toTemplate)];
+
+export const templateById = (id: string) => LOOKS.find((x) => x.id === id) ?? TEMPLATES[0];
 
 export function defaultStyle(id: TemplateId = "headline"): Style {
   return { ...templateById(id).style };

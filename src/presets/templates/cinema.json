@@ -1,0 +1,25 @@
+{
+  "id": "cinema",
+  "name": "Cinema",
+  "blurb": "Spaced capitals, like film subtitles",
+  "bestFor": "Travel and storytelling",
+  "credit": {
+    "name": "Aditya Sharma"
+  },
+  "style": {
+    "outline": false,
+    "shadow": true,
+    "shadowColor": "#00000080",
+    "shadowBlur": 0.3,
+    "font": "bodoni",
+    "weight": 500,
+    "case": "upper",
+    "tracking": 0.12,
+    "size": 0.04,
+    "wordsPerLine": 6,
+    "highlight": "none",
+    "animation": "fade",
+    "y": 0.84,
+    "maxWidth": 0.84
+  }
+}
