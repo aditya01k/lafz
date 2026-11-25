@@ -59,6 +59,7 @@ export default function Upload({ onFile, error, working }: { onFile: OnFile; err
 
         <Compare />
         <Languages />
+        <OnYourMac />
         <OpenSource />
         <Pricing onStart={start} />
       </main>
@@ -100,6 +101,7 @@ function Nav({ onStart }: { onStart: () => void }) {
         <nav className="hidden gap-6 text-[14px] md:flex" style={{ color: C.soft }}>
           <a href="#styles" className="hover:text-black">Styles</a>
           <a href="#languages" className="hover:text-black">Languages</a>
+          <a href="#mac" className="hover:text-black">Run on Mac</a>
           <a href="#open-source" className="hover:text-black">Open source</a>
           <a href="#pricing" className="hover:text-black">Pricing</a>
         </nav>
@@ -437,6 +439,65 @@ function Languages() {
   );
 }
 
+const MAC_STEPS = [
+  { c: "git clone https://github.com/aditya01k/lafz && cd lafz", note: "Get lafz" },
+  { c: "./scripts/setup-local.sh", note: "One time: installs the models (about 5 GB)" },
+  { c: "pnpm local", note: "Open localhost:3300. Works with Wi-Fi off" },
+];
+
+/** Local mode: the whole thing on an Apple Silicon Mac, offline, no keys. */
+function OnYourMac() {
+  return (
+    <section id="mac" className="border-t px-4 py-24" style={{ borderColor: C.line }}>
+      <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
+        <div>
+          <span className="rounded-md border px-2.5 py-1 text-[12px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
+            Local mode
+          </span>
+          <h2 className="mt-5 text-[36px] leading-[1.08] font-normal tracking-[-0.035em] sm:text-[52px]">
+            Your Mac is the <Em>caption studio.</Em>
+          </h2>
+          <p className="mt-5 max-w-md text-[17px] leading-relaxed" style={{ color: C.soft }}>
+            Whisper and an open language model run right on Apple Silicon. No internet, no API keys, no per-minute bill. Your
+            footage never leaves your desk.
+          </p>
+          <div className="mt-7 flex max-w-md flex-wrap gap-2">
+            {["Offline after setup", "₹0 forever", "Any M1–M4 Mac", "Nothing uploaded", "10 Indian languages"].map((x) => (
+              <span key={x} className="rounded-full border px-3 py-1.5 text-[13px]" style={{ background: C.card, borderColor: C.line }}>
+                {x}
+              </span>
+            ))}
+          </div>
+          <p className="mt-7 max-w-md text-[13px] leading-relaxed" style={{ color: C.soft }}>
+            Local mode uses open models. For the trickiest Hinglish and regional accents, hosted lafz (built on Sarvam&apos;s Indian
+            speech models) is more accurate.
+          </p>
+        </div>
+        <div className="overflow-hidden rounded-2xl border shadow-[0_30px_60px_-30px_rgba(29,23,20,0.45)]" style={{ borderColor: C.line, background: C.ink, color: "#f6efe7" }}>
+          <div className="flex h-10 items-center gap-1.5 border-b border-white/10 px-4">
+            <span className="size-2.5 rounded-full bg-[#ff5f57]" />
+            <span className="size-2.5 rounded-full bg-[#febc2e]" />
+            <span className="size-2.5 rounded-full bg-[#28c840]" />
+            <span className="ml-3 font-mono text-[12px] opacity-50">Terminal · Mac mini</span>
+          </div>
+          <div className="space-y-4 p-6 font-mono text-[13px] leading-relaxed">
+            {MAC_STEPS.map((s) => (
+              <div key={s.c}>
+                <div className="opacity-40"># {s.note}</div>
+                <div className="break-all">
+                  <span className="opacity-40">$ </span>
+                  {s.c}
+                </div>
+              </div>
+            ))}
+            <div className="text-emerald-300">✓ lafz is running on this Mac · offline</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const LOCAL = [
   { c: "git clone https://github.com/aditya01k/lafz && cd lafz", note: "Get the code" },
   { c: "pnpm install", note: "Install" },
@@ -456,8 +517,8 @@ function OpenSource() {
             Free forever. <Em>On your own machine.</Em>
           </h2>
           <p className="mt-5 max-w-md text-[17px] leading-relaxed opacity-65">
-            Every feature, every language, every style. No account, no limits, no watermark. You only pay Sarvam and OpenAI
-            for your own usage, about ₹1 a minute of video.
+            Every feature, every language, every style. No account, no limits, no watermark. Run it with your own Sarvam and
+            OpenAI keys, or in local mode on a Mac with no keys at all.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <a href={GITHUB} className="flex h-12 items-center gap-2 rounded-xl bg-white px-5 text-[15px] font-medium text-black">
@@ -501,7 +562,7 @@ function Pricing({ onStart }: { onStart: () => void }) {
             <div className="mt-4 text-[56px] leading-none font-light tracking-[-0.05em]">₹0</div>
             <p className="mt-2 text-[14px]" style={{ color: C.soft }}>Open source, forever</p>
             <ul className="mt-6 space-y-2.5 text-[15px]">
-              {["Every feature and style", "All 11 languages", "Unlimited videos, no watermark", "Bring your own API keys"].map((x) => (
+              {["Every feature and style", "All 11 languages", "Unlimited videos, no watermark", "Offline on a Mac, or your own API keys"].map((x) => (
                 <Check key={x}>{x}</Check>
               ))}
             </ul>

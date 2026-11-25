@@ -5,6 +5,7 @@ import { balance, charge, refundCharge, settleCharge } from "@/server/credits";
 import { clientIp, endJob, spend, startJob } from "@/server/limit";
 import { sarvamWords } from "@/server/sarvam";
 import { cleanSpelling } from "@/server/spelling";
+import { localMode, localWords } from "@/server/local";
 import { isOurWav, wavDuration } from "@/server/wav";
 import { whisperWords } from "@/server/whisper";
 
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
   if (!startJob(who)) return Response.json({ error: "Another video is still being captioned. Try again when it's done." }, { status: 429 });
   try {
     // The hourly cap protects hosted and public copies; a self-hoster on their own machine has none.
-    if ((billingOn() || process.env.NODE_ENV === "production") && !spend(who, seconds)) {
+    if (!localMode() && (billingOn() || process.env.NODE_ENV === "production") && !spend(who, seconds)) {
       return Response.json({ error: "That's an hour of captioning in the last hour. Try again in a bit." }, { status: 429 });
     }
 
@@ -78,12 +79,16 @@ async function transcribe(
 ) {
   try {
     // Words past the real end of the audio can't be right: drop them.
-    const timing = (await whisperWords(wav, language, script)).filter((w) => w.start < duration + 0.5);
-    const sarvamKey = process.env.SARVAM_API_KEY;
+    const local = localMode();
+    const timing = (local ? await localWords(wav, language, script) : await whisperWords(wav, language, script)).filter(
+      (w) => w.start < duration + 0.5,
+    );
+    // Local mode never calls a cloud service, even if keys happen to be set.
+    const sarvamKey = local ? undefined : process.env.SARVAM_API_KEY;
     const raw = sarvamKey ? await sarvamWords(wav, timing, sarvamKey, language, script) : timing;
     const cleaned = await cleanSpelling(raw, dictionary, language, script);
     const result: TranscribeResult = {
-      engine: sarvamKey ? "sarvam+whisper" : "whisper",
+      engine: local ? "local" : sarvamKey ? "sarvam+whisper" : "whisper",
       durationSec: duration,
       words: cleaned.map((w, i) => ({ id: `w${i}`, text: w.text, start: round(w.start), end: round(w.end), emoji: w.emoji })),
       ...(paid ? { seconds: await balance(paid.userId) } : {}),

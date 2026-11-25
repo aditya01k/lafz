@@ -1,11 +1,16 @@
 import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
+import { zodResponseFormat, zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import type { Language, Script } from "@/lib/languages";
 import { communitySpellings } from "./corrections";
+import { localMode } from "./local";
 import type { TimedWord } from "./whisper";
 
 let client: OpenAI | undefined;
+// Local mode: any OpenAI-compatible server on this machine, Ollama by default.
+let localClient: OpenAI | undefined;
+const LOCAL_URL = process.env.LAFZ_LOCAL_LLM_URL ?? "http://localhost:11434/v1";
+const LOCAL_MODEL = process.env.LAFZ_LOCAL_MODEL ?? "gemma3:4b";
 // gpt-5-mini at minimal effort: a spelling pass doesn't need thinking, and output tokens are
 // most of this step's cost (about ₹0.3 a minute of video, against ₹5+ on gpt-5.5).
 const MODEL = process.env.OPENAI_MODEL ?? "gpt-5-mini";
@@ -84,6 +89,7 @@ async function cleanBatch(batch: TimedWord[], dictionary: string[], language: La
     ? `\n\nPreferred spellings (names, brands, and fixes creators made; "a → b" means write b for a), always use them: ${dictionary.join(", ")}`
     : "";
   try {
+    if (localMode()) return await cleanBatchLocal(batch, promptFor(language, script) + dict);
     const response = await client!.responses.parse({
       model: MODEL,
       reasoning: { effort: EFFORT },
@@ -105,4 +111,22 @@ async function cleanBatch(batch: TimedWord[], dictionary: string[], language: La
     console.error("spelling pass failed, keeping raw words", err);
     return batch;
   }
+}
+
+/** The same pass on a local model (Ollama's OpenAI-compatible API with a JSON schema). */
+async function cleanBatchLocal(batch: TimedWord[], instructions: string) {
+  localClient ??= new OpenAI({ baseURL: LOCAL_URL, apiKey: "local" });
+  const res = await localClient.chat.completions.parse({
+    model: LOCAL_MODEL,
+    temperature: 0,
+    messages: [
+      { role: "system", content: instructions },
+      { role: "user", content: batch.map((w, i) => `${i + 1}. ${w.text}`).join("\n") },
+    ],
+    response_format: zodResponseFormat(Out, "hinglish_words"),
+  });
+  const parsed = res.choices[0]?.message.parsed?.words;
+  // Small local models miscount more often: keep the raw words rather than shift timings.
+  if (!parsed || parsed.length !== batch.length) return batch;
+  return batch.map((w, i) => ({ ...w, text: parsed[i].text.trim() || w.text, emoji: parsed[i].emoji.trim() || undefined }));
 }

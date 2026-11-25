@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "benchmark": "tsx scripts/benchmark.mts"
+    "benchmark": "tsx scripts/benchmark.mts",
+    "local": "LAFZ_LOCAL=1 next start -p 3300",
+    "setup:local": "./scripts/setup-local.sh"
   },
   "packageManager": "pnpm@10.11.0",
   "dependencies": {

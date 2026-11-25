@@ -15,7 +15,23 @@ Open-source captions for 11 Indian languages, in English letters ("yaar kya scen
 
 Rendering happens on the user's device, so the only per-video cost is transcription (about ₹0.50 a minute with Sarvam, plus Whisper and the spelling pass).
 
-## Run it locally
+## Local mode: fully on your Mac
+
+No API keys, no internet after setup, nothing leaves the machine. Needs an Apple Silicon Mac
+(M1 or newer), Homebrew and Node 20+.
+
+```bash
+git clone https://github.com/aditya01k/lafz && cd lafz
+./scripts/setup-local.sh   # one time: uv, Ollama, Whisper large-v3-turbo and gemma3:4b (~5 GB)
+pnpm local                 # http://localhost:3300
+```
+
+Words and timing come from Whisper on Apple's MLX (`mlx-whisper`); the spelling pass runs on
+Ollama (any model: set `LAFZ_LOCAL_MODEL`, or point `LAFZ_LOCAL_LLM_URL` at another
+OpenAI-compatible server such as LM Studio). Open models are good across languages but less
+accurate on Hinglish and regional accents than the hosted Sarvam path. Whisper has no Odia, so Odia falls back to auto-detect.
+
+## Run it locally with API keys
 
 ```bash
 git clone https://github.com/aditya01k/lafz && cd lafz

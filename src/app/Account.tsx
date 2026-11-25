@@ -8,7 +8,7 @@ import { PACKS, RUPEES_PER_MINUTE, minutesLabel } from "@/lib/pricing";
  * The hosted account: sign-in and the credit balance. On self-hosted copies `/api/me`
  * says billing is off and none of this renders.
  */
-type Me = { billing: boolean; user?: { email: string; name: string | null } | null; seconds?: number };
+type Me = { billing: boolean; local?: boolean; user?: { email: string; name: string | null } | null; seconds?: number };
 
 type AccountCtx = {
   me: Me | null;
@@ -91,6 +91,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 export function AccountButton() {
   const { me, openSignIn, openBuy, refresh } = useAccount();
   const [menu, setMenu] = useState(false);
+  if (me?.local) {
+    return (
+      <span className="flex h-8 items-center gap-2 rounded-full border border-hairline px-3 text-[13px]" title="Local mode: Whisper and the spelling model run on this Mac">
+        <span className="size-1.5 rounded-full bg-emerald-400" />
+        On this Mac · offline
+      </span>
+    );
+  }
   if (!me?.billing) return null;
   if (!me.user) {
     return (
