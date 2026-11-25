@@ -41,6 +41,7 @@ export default function Upload({ onFile, error, working }: { onFile: OnFile; err
       <main>
         <Hero onStart={start} />
         <Statement />
+        <OnYourMac />
 
         <section id="try" className="px-4 pb-24">
           <div className="mx-auto max-w-3xl rounded-[28px] border p-6 sm:p-10" style={{ background: C.card, borderColor: C.line }}>
@@ -59,7 +60,6 @@ export default function Upload({ onFile, error, working }: { onFile: OnFile; err
 
         <Compare />
         <Languages />
-        <OnYourMac />
         <OpenSource />
         <Pricing onStart={start} />
       </main>
@@ -99,9 +99,9 @@ function Nav({ onStart }: { onStart: () => void }) {
       >
         <Logo />
         <nav className="hidden gap-6 text-[14px] md:flex" style={{ color: C.soft }}>
+          <a href="#mac" className="hover:text-black">Run on Mac</a>
           <a href="#styles" className="hover:text-black">Styles</a>
           <a href="#languages" className="hover:text-black">Languages</a>
-          <a href="#mac" className="hover:text-black">Run on Mac</a>
           <a href="#open-source" className="hover:text-black">Open source</a>
           <a href="#pricing" className="hover:text-black">Pricing</a>
         </nav>
@@ -149,31 +149,36 @@ function Hero({ onStart }: { onStart: () => void }) {
       <Circuit />
       <div className="relative mx-auto max-w-4xl text-center">
         <a
-          href="#open-source"
+          href="#mac"
           className="inline-flex items-center gap-2.5 rounded-full border py-1.5 pr-4 pl-1.5 text-[13px] font-medium shadow-sm"
           style={{ background: "#fff", borderColor: C.line }}
         >
           <span className="rounded-full px-2.5 py-1 text-[12px] font-semibold text-white" style={{ background: C.maroon }}>
-            Open source
+            New
           </span>
-          Free forever on your own machine
+          Runs offline on your Mac · open source
           <span aria-hidden>→</span>
         </a>
         <h1 className="mt-8 text-[46px] leading-[1.02] font-normal tracking-[-0.045em] sm:text-[80px]">
-          Captions for every <Em>Indian</Em>
+          Indian captions,
           <br />
-          <span style={{ color: C.soft }}>language.</span>
+          <Em>right on your Mac.</Em>
         </h1>
-        <p className="mx-auto mt-6 max-w-xl text-[17px] leading-relaxed sm:text-[19px]" style={{ color: C.soft }}>
-          Hindi, Tamil, Telugu and 8 more, in English letters or their own script, timed word by word.
+        <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed sm:text-[19px]" style={{ color: C.soft }}>
+          Hindi, Tamil, Telugu and more, spelled the way you type and timed word by word. Free and offline on any M-series Mac.
+          Your videos never leave your desk.
         </p>
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <button onClick={onStart} className="h-12 rounded-xl px-6 text-[15px] font-medium text-white shadow-[0_8px_24px_-8px_rgba(58,21,21,0.6)]" style={{ background: C.maroon }}>
-            Caption a reel · ₹{RUPEES_PER_MINUTE}/min
-          </button>
-          <a href="#open-source" className="flex h-12 items-center gap-2 rounded-xl border px-6 text-[15px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
-            <GitHubIcon className="size-4" /> Run it free · ₹0
+          <a
+            href="#mac"
+            className="flex h-12 items-center gap-2 rounded-xl px-6 text-[15px] font-medium text-white shadow-[0_8px_24px_-8px_rgba(58,21,21,0.6)]"
+            style={{ background: C.maroon }}
+          >
+            <MacIcon className="size-4" /> Run it on your Mac · free
           </a>
+          <button onClick={onStart} className="h-12 rounded-xl border px-6 text-[15px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
+            No Mac? Caption online · ₹{RUPEES_PER_MINUTE}/min
+          </button>
         </div>
       </div>
 
@@ -187,7 +192,7 @@ function Hero({ onStart }: { onStart: () => void }) {
           <HeroDemo />
         </div>
         <div className="order-3 space-y-4 lg:justify-self-start">
-          <Floating dark title="Free to self-host" body={<span className="font-mono text-[12px]">$ git clone …/lafz</span>} />
+          <Floating dark title="Wi-Fi off. Still captioning." body="Whisper and the spelling model run on your Mac's own chip." />
           <Floating title="Export anything" body="MP4 · Transparent · Green screen · SRT" />
         </div>
       </div>
@@ -216,17 +221,18 @@ function Statement() {
   );
   return (
     <section className="mx-4 mb-24 rounded-[32px] px-6 py-20 text-center sm:px-12" style={{ background: C.maroon, color: "#f6efe7" }}>
-      <span className="rounded-md bg-white/10 px-2.5 py-1 text-[12px] font-medium tracking-wide">About lafz</span>
+      <span className="rounded-md bg-white/10 px-2.5 py-1 text-[12px] font-medium tracking-wide">Why lafz</span>
       <p className="mx-auto mt-8 max-w-4xl text-[26px] leading-[1.3] tracking-[-0.02em] sm:text-[38px]">
-        Lafz {chip("🎙️ 11 languages")} captions your reels the way Indians actually type, and it&apos;s{" "}
-        {chip(<><GitHubIcon className="mr-1.5 size-3.5" /> open source</>)} <Em>free to run</Em>{" "}
-        <span className="opacity-50">on your own machine, forever. Or use ours and pay only for the minutes you caption.</span>
+        Every other captioner uploads your video to its cloud and bills you a subscription. Lafz runs{" "}
+        {chip(<><MacIcon className="mr-1.5 size-3.5" /> on your Mac</>)} <Em>with Wi-Fi off,</Em> spells{" "}
+        {chip("🎙️ Indian languages")} the way you type, and it&apos;s {chip(<><GitHubIcon className="mr-1.5 size-3.5" /> open source.</>)}{" "}
+        <span className="opacity-50">No Mac? Use ours, and pay only for the minutes you caption.</span>
       </p>
       <div className="mx-auto mt-14 grid max-w-3xl grid-cols-3 divide-x divide-white/15">
         {[
-          ["₹0", "to run it yourself"],
-          ["11", "Indian languages"],
-          [`₹${RUPEES_PER_MINUTE}`, "per minute, hosted"],
+          ["₹0", "on your Mac, forever"],
+          ["0 MB", "of video uploaded"],
+          [`₹${RUPEES_PER_MINUTE}`, "per minute, online"],
         ].map(([n, l]) => (
           <div key={l} className="px-2">
             <div className="text-[34px] font-light tracking-[-0.03em] sm:text-[44px]">{n}</div>
@@ -500,13 +506,43 @@ const MAC_STEPS = [
 ];
 
 /** Local mode: the whole thing on an Apple Silicon Mac, offline, no keys. */
+const VERSUS: [string, string, string][] = [
+  ["Price", "₹0, forever", `₹${RUPEES_PER_MINUTE} a minute, prepaid`],
+  ["Internet", "Not needed after setup", "Needed"],
+  ["Your video", "Never leaves your Mac", "Stays in your browser; only the audio is sent"],
+  ["Accuracy", "Open models: good in most languages", "Sarvam's Indian models: best for heavy Hinglish and accents"],
+  ["Languages", "10 (no Odia yet)", "11"],
+  ["Setup", "One script, about 5 GB", "None: sign in and go"],
+  ["Needs", "Any M1–M4 Mac", "Any browser"],
+];
+
+/** Local vs hosted, side by side, so the choice is easy and honest. */
+function Versus() {
+  return (
+    <div className="mx-auto mt-14 max-w-6xl overflow-hidden rounded-[24px] border" style={{ background: C.card, borderColor: C.line }}>
+      <div className="grid grid-cols-[0.8fr_1fr_1fr] border-b px-5 py-3.5 text-[13px] font-semibold" style={{ borderColor: C.line }}>
+        <span />
+        <span className="flex items-center gap-2"><MacIcon className="size-4" /> On your Mac</span>
+        <span style={{ color: C.soft }}>Online at uselafz.in</span>
+      </div>
+      {VERSUS.map(([k, mac, web], i) => (
+        <div key={k} className="grid grid-cols-[0.8fr_1fr_1fr] gap-3 px-5 py-3 text-[14px]" style={i ? { borderTop: `1px solid ${C.line}` } : undefined}>
+          <span style={{ color: C.soft }}>{k}</span>
+          <span className="font-medium">{mac}</span>
+          <span style={{ color: C.soft }}>{web}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function OnYourMac() {
   return (
     <section id="mac" className="border-t px-4 py-24" style={{ borderColor: C.line }}>
       <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
-        <div>
+        <div className="min-w-0">
           <span className="rounded-md border px-2.5 py-1 text-[12px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
-            Local mode
+            Local mode · beta
           </span>
           <h2 className="mt-5 text-[36px] leading-[1.08] font-normal tracking-[-0.035em] sm:text-[52px]">
             Your Mac is the <Em>caption studio.</Em>
@@ -522,12 +558,9 @@ function OnYourMac() {
               </span>
             ))}
           </div>
-          <p className="mt-7 max-w-md text-[13px] leading-relaxed" style={{ color: C.soft }}>
-            Local mode uses open models. For the trickiest Hinglish and regional accents, hosted lafz (built on Sarvam&apos;s Indian
-            speech models) is more accurate.
-          </p>
+
         </div>
-        <div className="overflow-hidden rounded-2xl border shadow-[0_30px_60px_-30px_rgba(29,23,20,0.45)]" style={{ borderColor: C.line, background: C.ink, color: "#f6efe7" }}>
+        <div className="min-w-0 overflow-hidden rounded-2xl border shadow-[0_30px_60px_-30px_rgba(29,23,20,0.45)]" style={{ borderColor: C.line, background: C.ink, color: "#f6efe7" }}>
           <div className="flex h-10 items-center gap-1.5 border-b border-white/10 px-4">
             <span className="size-2.5 rounded-full bg-[#ff5f57]" />
             <span className="size-2.5 rounded-full bg-[#febc2e]" />
@@ -548,6 +581,7 @@ function OnYourMac() {
           </div>
         </div>
       </div>
+      <Versus />
     </section>
   );
 }
@@ -564,7 +598,7 @@ function OpenSource() {
   return (
     <section id="open-source" className="mx-4 my-8 rounded-[32px] px-6 py-20 sm:px-12" style={{ background: C.ink, color: "#f6efe7" }}>
       <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
-        <div>
+        <div className="min-w-0">
           <span className="rounded-md bg-white/10 px-2.5 py-1 text-[12px] font-medium">Open source · AGPL-3.0</span>
           <div className="mt-8 text-[96px] leading-none font-light tracking-[-0.06em] sm:text-[140px]">₹0</div>
           <h2 className="mt-4 text-[34px] leading-[1.1] tracking-[-0.03em] sm:text-[44px]">
@@ -581,7 +615,7 @@ function OpenSource() {
             <Command text={CLONE} dark />
           </div>
         </div>
-        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
           <div className="flex h-10 items-center gap-1.5 border-b border-white/10 px-4">
             <span className="size-2.5 rounded-full bg-white/20" />
             <span className="size-2.5 rounded-full bg-white/20" />
@@ -662,6 +696,16 @@ function Check({ children }: { children: React.ReactNode }) {
       </svg>
       {children}
     </li>
+  );
+}
+
+/** A small desktop computer, not Apple's logo. */
+function MacIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M8 20h8M12 16v4" />
+    </svg>
   );
 }
 

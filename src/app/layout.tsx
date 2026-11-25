@@ -3,27 +3,28 @@ import { fontVariables } from "./fonts";
 import "./globals.css";
 
 const description =
-  "Open-source, word-by-word captions for reels in 11 Indian languages: Hindi, Tamil, Telugu and more, in English letters (kya scene hai) or their own script. Free to run yourself, or ₹10 a minute hosted.";
+  "Open-source captions for Indian languages that run offline on your Mac: Hindi, Tamil, Telugu and more, word by word, in English letters (kya scene hai) or their own script. Free on your Mac, or ₹4 a minute online.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://uselafz.in"),
-  title: { default: "Lafz: captions for every Indian language", template: "%s · Lafz" },
+  title: { default: "Lafz: Indian-language captions, offline on your Mac", template: "%s · Lafz" },
   description,
   applicationName: "Lafz",
   keywords: [
     "Hinglish captions", "Hindi subtitles", "Indian language captions", "reel captions", "auto captions",
     "Tamil captions", "Telugu captions", "open source captions", "Kalakar alternative", "SRT generator",
+    "offline captions Mac", "Whisper Mac captions", "local captions Apple Silicon",
   ],
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     siteName: "Lafz",
     url: "/",
-    title: "Lafz: captions for every Indian language",
+    title: "Lafz: Indian-language captions, offline on your Mac",
     description,
     locale: "en_IN",
   },
-  twitter: { card: "summary_large_image", title: "Lafz: captions for every Indian language", description },
+  twitter: { card: "summary_large_image", title: "Lafz: Indian-language captions, offline on your Mac", description },
   icons: { icon: "/icon.svg", apple: "/apple-icon" },
 };
 
