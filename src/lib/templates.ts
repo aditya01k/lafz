@@ -1,101 +1,195 @@
+import { ensureFont, fontMeta, fontStack, isRtl, type FontId } from "./fonts";
 import { lineAt, type Line } from "./lines";
 import type { Word } from "./types";
 
 /**
- * One renderer for the live preview and every export, so what the creator sees
- * is what the MP4 gets.
+ * One renderer for the live preview and every export, so what the creator sees is what the
+ * MP4 gets. Every look is a `Style`: the presets below are just starting values, and the
+ * editor can change any field.
  */
 
-export type FontKey = "montserrat" | "anton" | "poppins" | "inter" | "bebas";
-
-// Filled in by the app from next/font so canvas uses the same loaded faces.
-export const FONT_FAMILIES: Record<FontKey, string> = {
-  montserrat: "Montserrat, sans-serif",
-  anton: "Anton, sans-serif",
-  poppins: "Poppins, sans-serif",
-  inter: "Inter, sans-serif",
-  bebas: "'Bebas Neue', sans-serif",
-};
-
 export type TemplateId =
-  | "pop" | "punch" | "karaoke" | "bubble" | "classic"
-  | "minimal" | "bazaar" | "neon" | "typewriter" | "headline";
+  | "pop" | "punch" | "beast" | "karaoke" | "bubble" | "classic"
+  | "minimal" | "neon" | "typewriter" | "headline" | "serif" | "marker";
 
 export type Style = {
-  template: TemplateId;
-  /** Multiplies the template's text size. */
+  preset: TemplateId;
+  font: FontId;
+  weight: number;
+  italic: boolean;
+  /** Text size as a share of the frame's reference width (0.085 ≈ 92 px on a 1080-wide reel). */
   size: number;
-  /** Vertical centre of the captions, 0 = top, 1 = bottom. */
+  /** Extra space between letters, in em. */
+  tracking: number;
+  case: "as-is" | "upper" | "lower";
+  textColor: string;
+  /** How the spoken word stands out. */
+  highlight: "color" | "box" | "underline" | "none";
+  highlightColor: string;
+  /** Highlight only the word being said, or every word said so far. */
+  highlightScope: "current" | "spoken";
+  /** Every word its own bright colour. */
+  rainbow: boolean;
+  /** Opacity of words not yet said (1 = no dimming). */
+  dim: number;
+  /** Show only words already said. */
+  reveal: boolean;
+  outline: boolean;
+  outlineColor: string;
+  /** Outline thickness in em. */
+  outlineWidth: number;
+  shadow: boolean;
+  shadowColor: string;
+  /** Shadow softness in em. */
+  shadowBlur: number;
+  background: "none" | "line" | "word";
+  backgroundColor: string;
+  backgroundOpacity: number;
+  /** Corner roundness in em. */
+  radius: number;
+  animation: "none" | "pop" | "bounce" | "fade" | "slide";
+  /** Vertical centre, 0 = top, 1 = bottom. */
   y: number;
-  uppercase: boolean;
+  wordsPerLine: number;
+  /** One word per row, stacked. */
+  stack: boolean;
   emojis: boolean;
-  /** Overrides the template's words per line. */
-  wordsPerLine: number | null;
-  textColor: string | null;
-  highlightColor: string | null;
 };
+
+const BASE: Omit<Style, "preset"> = {
+  font: "montserrat", weight: 900, italic: false, size: 0.085, tracking: 0, case: "as-is",
+  textColor: "#ffffff", highlight: "color", highlightColor: "#ffe600", highlightScope: "current",
+  rainbow: false, dim: 1, reveal: false,
+  outline: true, outlineColor: "#000000", outlineWidth: 0.16,
+  shadow: false, shadowColor: "#000000", shadowBlur: 0.25,
+  background: "none", backgroundColor: "#000000", backgroundOpacity: 0.6, radius: 0.2,
+  animation: "pop", y: 0.66, wordsPerLine: 3, stack: false, emojis: false,
+};
+
+export type Template = { id: TemplateId; name: string; blurb: string; style: Style };
+
+const t = (id: TemplateId, name: string, blurb: string, s: Partial<Style>): Template => ({
+  id, name, blurb, style: { ...BASE, ...s, preset: id },
+});
+
+export const TEMPLATES: Template[] = [
+  t("pop", "Pop", "One word at a time, big and punchy", {
+    font: "bricolage", weight: 800, size: 0.115, wordsPerLine: 1, highlight: "none", outlineWidth: 0.2, y: 0.62,
+  }),
+  t("punch", "Punch", "Bold caps, the spoken word lights up", {
+    font: "montserrat", weight: 900, size: 0.08, case: "upper", shadow: true, shadowColor: "#00000099",
+  }),
+  t("beast", "Beast", "Chunky cartoon caps in loud colours", {
+    font: "luckiest", weight: 400, size: 0.09, case: "upper", rainbow: true, highlight: "none", outlineWidth: 0.22, wordsPerLine: 3, y: 0.64,
+  }),
+  t("karaoke", "Karaoke", "Words fill with colour as they're said", {
+    font: "poppins", weight: 800, size: 0.06, highlightColor: "#3cff7a", highlightScope: "spoken", wordsPerLine: 6, animation: "none", outlineWidth: 0.14, y: 0.72,
+  }),
+  t("bubble", "Bubble", "Each word in its own pill", {
+    font: "jakarta", weight: 800, size: 0.056, textColor: "#111111", highlight: "box", highlightColor: "#ff5a36",
+    outline: false, background: "word", backgroundColor: "#ffffff", backgroundOpacity: 1, radius: 0.4, wordsPerLine: 4, y: 0.7, animation: "pop",
+  }),
+  t("classic", "Classic", "Clean subtitles on a dark band", {
+    font: "inter", weight: 600, size: 0.045, highlight: "none", outline: false, background: "line", backgroundOpacity: 0.62,
+    radius: 0.18, wordsPerLine: 9, animation: "none", y: 0.82,
+  }),
+  t("minimal", "Minimal", "Soft lowercase, unsaid words dimmed", {
+    font: "geist", weight: 600, size: 0.052, case: "lower", highlight: "none", dim: 0.42, outline: false, shadow: true,
+    shadowColor: "#0000008c", shadowBlur: 0.3, wordsPerLine: 5, animation: "none", y: 0.7,
+  }),
+  t("neon", "Neon", "Glowing wide type", {
+    font: "unbounded", weight: 800, size: 0.07, case: "upper", outline: false, shadow: true, shadowColor: "#2ee6ff", shadowBlur: 0.55,
+    highlightColor: "#ff4fd8", wordsPerLine: 3, y: 0.64,
+  }),
+  t("typewriter", "Typewriter", "Words appear as they're spoken", {
+    font: "spaceGrotesk", weight: 600, size: 0.05, highlight: "none", reveal: true, outline: false, background: "word",
+    backgroundOpacity: 0.78, radius: 0.12, wordsPerLine: 6, animation: "fade", y: 0.74,
+  }),
+  t("headline", "Headline", "Two huge words, stacked", {
+    font: "anton", weight: 400, size: 0.13, case: "upper", stack: true, wordsPerLine: 2, highlightScope: "current", y: 0.6,
+  }),
+  t("serif", "Editorial", "Elegant italic serif, lifestyle feel", {
+    font: "instrumentSerif", weight: 400, italic: true, size: 0.075, highlight: "none", dim: 0.5, outline: false, shadow: true,
+    shadowColor: "#00000080", shadowBlur: 0.35, wordsPerLine: 4, animation: "fade", y: 0.7,
+  }),
+  t("marker", "Marker", "Hand-drawn, casual vlog energy", {
+    font: "permanentMarker", weight: 400, size: 0.072, highlightColor: "#ffe600", outlineWidth: 0.12, wordsPerLine: 3, animation: "bounce", y: 0.68,
+  }),
+];
+
+export const templateById = (id: string) => TEMPLATES.find((x) => x.id === id) ?? TEMPLATES[1];
+
+export function defaultStyle(id: TemplateId = "punch"): Style {
+  return { ...templateById(id).style };
+}
+
+/** Old saved projects stored a smaller style; give them a full one. */
+export function normalizeStyle(s: Partial<Style> & { template?: TemplateId }): Style {
+  if (s.font && s.preset) return { ...defaultStyle(s.preset), ...s };
+  const base = defaultStyle(s.template ?? s.preset ?? "punch");
+  return { ...base, ...(typeof s.size === "number" && s.size > 0.3 ? { size: base.size * s.size } : {}), ...(s.y ? { y: s.y } : {}) };
+}
+
+export function lineBudget(style: Style) {
+  const words = style.stack ? Math.min(style.wordsPerLine, 3) : style.wordsPerLine;
+  return { maxWords: words, maxChars: Math.max(12, words * 7) };
+}
+
+const RAINBOW = ["#ffe600", "#ff4fd8", "#2ee6ff", "#3cff7a", "#ff8a1f"];
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
-
-type Args = {
-  ctx: Ctx;
-  W: number;
-  H: number;
-  t: number;
-  line: Line;
-  texts: string[];
-  px: number;
-  cy: number;
-  text: string;
-  hi: string;
-  tpl: Template;
-};
-
-export type Template = {
-  id: TemplateId;
-  name: string;
-  blurb: string;
-  font: FontKey;
-  weight: number;
-  /** Text size as a share of the frame's reference width. */
-  size: number;
-  maxWords: number;
-  maxChars: number;
-  y: number;
-  uppercase: boolean;
-  text: string;
-  hi: string;
-  render: (a: Args) => void;
-};
-
 const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const easeOut = (x: number) => 1 - (1 - x) ** 3;
 
-/** The word being spoken, or the last one spoken in a pause. */
+function hexAlpha(hex: string, a: number) {
+  const h = hex.replace("#", "");
+  const n = h.length === 3 ? h.split("").map((c) => c + c).join("") : h.slice(0, 6);
+  const v = parseInt(n, 16);
+  return `rgba(${(v >> 16) & 255}, ${(v >> 8) & 255}, ${v & 255}, ${a})`;
+}
+
+/** Dark or white text, whichever reads on this background. */
+function onColor(hex: string) {
+  const v = parseInt(hex.replace("#", "").slice(0, 6).padEnd(6, "0"), 16);
+  const l = (0.299 * ((v >> 16) & 255) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255)) / 255;
+  return l > 0.6 ? "#111111" : "#ffffff";
+}
+
 function activeIndex(words: Word[], t: number) {
   let idx = -1;
   for (let i = 0; i < words.length; i++) if (words[i].start <= t) idx = i;
   return idx;
 }
 
-/** Pop-in scale for a word that just started. */
-const pop = (w: Word, t: number, amp = 0.18) => 1 + amp * (1 - easeOut(clamp((t - w.start) / 0.16)));
+type Placed = { i: number; x: number; y: number; w: number; row: number };
 
-type Placed = { i: number; x: number; y: number; w: number };
+/** Draws whatever caption is on screen at time t. The caller clears or draws the frame first. */
+export function drawCaptions(ctx: Ctx, W: number, H: number, t: number, lines: Line[], s: Style) {
+  const line = lineAt(lines, t);
+  if (!line) return;
+  const ref = Math.min(W, H * 0.75);
+  const px = s.size * ref;
+  const texts = line.words.map((w) => (s.case === "upper" ? w.text.toUpperCase() : s.case === "lower" ? w.text.toLowerCase() : w.text));
+  const all = texts.join(" ");
+  const act = activeIndex(line.words, t);
 
-/** Wraps words into centred rows that fit 86% of the frame width. */
-function layout(a: Args, opts: { gap?: number; lead?: number; pad?: number } = {}): Placed[] {
-  const { ctx, W, px, cy, texts } = a;
-  const gap = (opts.gap ?? 0.28) * px;
-  const pad = (opts.pad ?? 0) * px;
-  const lead = (opts.lead ?? 1.18) * px;
-  const maxW = W * 0.86;
-  const widths = texts.map((s) => ctx.measureText(s).width + pad * 2);
+  ctx.save();
+  ctx.font = `${s.italic ? "italic " : ""}${s.weight} ${px}px ${fontStack(s.font, all)}`;
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.lineJoin = "round";
+  if ("letterSpacing" in ctx) (ctx as CanvasRenderingContext2D).letterSpacing = `${s.tracking * px}px`;
+
+  // Lay out words in rows that fit 86% of the width (or one per row when stacked).
+  const pad = s.background === "word" ? 0.3 * px : 0;
+  const gap = (s.background === "word" ? 0.18 : s.highlight === "box" ? 0.5 : s.animation === "pop" || s.animation === "bounce" ? 0.4 : 0.28) * px;
+  const lead = (s.stack ? 1.04 : s.background === "word" || s.background === "line" ? 1.45 : 1.2) * px;
+  const widths = texts.map((x) => ctx.measureText(x).width + pad * 2);
   const rows: number[][] = [[]];
   let rowW = 0;
   widths.forEach((w, i) => {
     const row = rows.at(-1)!;
-    if (row.length && rowW + gap + w > maxW) {
+    if (row.length && (s.stack || rowW + gap + w > W * 0.86)) {
       rows.push([i]);
       rowW = w;
     } else {
@@ -103,277 +197,120 @@ function layout(a: Args, opts: { gap?: number; lead?: number; pad?: number } = {
       row.push(i);
     }
   });
-  const top = cy - ((rows.length - 1) * lead) / 2;
+  const rtl = isRtl(all);
+  const top = s.y * H - ((rows.length - 1) * lead) / 2;
   const placed: Placed[] = [];
   rows.forEach((row, r) => {
-    const total = row.reduce((s, i) => s + widths[i], 0) + gap * (row.length - 1);
+    const order = rtl ? [...row].reverse() : row;
+    const total = row.reduce((sum, i) => sum + widths[i], 0) + gap * (row.length - 1);
     let x = W / 2 - total / 2;
-    for (const i of row) {
-      placed.push({ i, x, y: top + r * lead, w: widths[i] });
+    for (const i of order) {
+      placed.push({ i, x, y: top + r * lead, w: widths[i], row: r });
       x += widths[i] + gap;
     }
   });
-  return placed;
-}
 
-function setFont(a: Args, scale = 1) {
-  a.ctx.font = `${a.tpl.weight} ${a.px * scale}px ${FONT_FAMILIES[a.tpl.font]}`;
-  a.ctx.textBaseline = "middle";
-  a.ctx.textAlign = "left";
-  a.ctx.lineJoin = "round";
-}
+  const visible = (i: number) => !s.reveal || line.words[i].start <= t;
 
-/** Draws text scaled about its own centre. */
-function word(
-  a: Args,
-  s: string,
-  p: Placed,
-  opts: { fill: string; stroke?: string; strokeW?: number; scale?: number; shadow?: string; blur?: number; alpha?: number; pad?: number },
-) {
-  const { ctx, px } = a;
-  const scale = opts.scale ?? 1;
-  const pad = (opts.pad ?? 0) * px;
-  ctx.save();
-  ctx.globalAlpha = opts.alpha ?? 1;
-  ctx.translate(p.x + p.w / 2, p.y);
-  ctx.scale(scale, scale);
-  const x = -p.w / 2 + pad;
-  if (opts.shadow) {
-    ctx.shadowColor = opts.shadow;
-    ctx.shadowBlur = (opts.blur ?? 0.25) * px;
+  // A band behind each row.
+  if (s.background === "line") {
+    rows.forEach((_, r) => {
+      const inRow = placed.filter((p) => p.row === r && visible(p.i));
+      if (!inRow.length) return;
+      const x0 = Math.min(...inRow.map((p) => p.x)) - px * 0.4;
+      const x1 = Math.max(...inRow.map((p) => p.x + p.w)) + px * 0.4;
+      pill(ctx, x0, inRow[0].y - px * 0.68, x1 - x0, px * 1.36, s.radius * px, hexAlpha(s.backgroundColor, s.backgroundOpacity));
+    });
   }
-  if (opts.stroke) {
-    ctx.strokeStyle = opts.stroke;
-    ctx.lineWidth = (opts.strokeW ?? 0.16) * px;
-    ctx.strokeText(s, x, 0);
-    ctx.shadowColor = "transparent";
+
+  for (const p of placed) {
+    if (!visible(p.i)) continue;
+    const w = line.words[p.i];
+    const spoken = w.start <= t;
+    const isActive = p.i === act;
+    const lit = s.highlight !== "none" && (s.highlightScope === "spoken" ? spoken : isActive);
+    const age = t - w.start;
+
+    // Motion: the word being said (or, when revealing, each word as it appears).
+    let scale = 1;
+    let dy = 0;
+    let alpha = spoken ? 1 : s.dim;
+    const animates = isActive || (s.reveal && spoken && age < 0.3);
+    if (animates) {
+      const k = easeOut(clamp(age / 0.18));
+      if (s.animation === "pop") scale = 1 + 0.2 * (1 - k);
+      if (s.animation === "bounce") dy = -Math.sin(clamp(age / 0.25) * Math.PI) * 0.18 * px;
+      if (s.animation === "fade") alpha *= clamp(age / 0.15);
+      if (s.animation === "slide") {
+        dy = (1 - k) * 0.35 * px;
+        alpha *= k;
+      }
+    }
+    if (isActive && s.highlight === "color" && s.animation !== "none") scale *= 1.04;
+
+    let fill = s.rainbow ? RAINBOW[(Number(w.id.replace(/\D/g, "")) || p.i) % RAINBOW.length] : s.textColor;
+    if ((lit && s.highlight === "color") || w.emphasis) fill = s.highlightColor;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(p.x + p.w / 2, p.y + dy);
+    ctx.scale(scale, scale);
+    const x = -p.w / 2 + pad;
+
+    const boxed = lit && s.highlight === "box";
+    if (s.background === "word" || boxed) {
+      const bg = boxed ? s.highlightColor : hexAlpha(s.backgroundColor, s.backgroundOpacity);
+      // A box needs room around the word even when the style has no word padding.
+      const extra = pad ? 0 : px * 0.22;
+      pill(ctx, -p.w / 2 - extra, -px * 0.66, p.w + extra * 2, px * 1.32, s.radius * px, bg);
+      if (boxed) fill = onColor(s.highlightColor);
+    }
+    if (s.shadow && !boxed) {
+      ctx.shadowColor = s.shadowColor;
+      ctx.shadowBlur = s.shadowBlur * px;
+      ctx.shadowOffsetY = s.shadowColor.startsWith("#00000") ? px * 0.05 : 0;
+    }
+    if (s.outline && !boxed) {
+      ctx.strokeStyle = s.outlineColor;
+      ctx.lineWidth = s.outlineWidth * px;
+      ctx.strokeText(texts[p.i], x, 0);
+      // Shadow once, under the outline, not again under the fill.
+      ctx.shadowColor = "transparent";
+    }
+    ctx.fillStyle = fill;
+    ctx.fillText(texts[p.i], x, 0);
+    if (lit && s.highlight === "underline") {
+      ctx.shadowColor = "transparent";
+      ctx.fillStyle = s.highlightColor;
+      ctx.fillRect(x, px * 0.52, p.w - pad * 2, Math.max(2, px * 0.09));
+    }
+    ctx.restore();
   }
-  ctx.fillStyle = opts.fill;
-  ctx.fillText(s, x, 0);
+
+  if (s.emojis) {
+    const said = line.words.filter((w) => w.emoji && w.start <= t).at(-1);
+    if (said?.emoji) {
+      const k = 1 + 0.35 * (1 - easeOut(clamp((t - said.start) / 0.16)));
+      ctx.font = `${px * 1.3 * k}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.globalAlpha = 1;
+      ctx.fillText(said.emoji, W / 2, top - px * 1.5);
+    }
+  }
   ctx.restore();
 }
 
-function roundRect(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, fill: string) {
+function pill(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, fill: string) {
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, r);
+  ctx.roundRect(x, y, w, h, Math.min(r, h / 2));
   ctx.fillStyle = fill;
   ctx.fill();
 }
 
-const emphasized = (a: Args, i: number) => a.line.words[i].emphasis;
-
-export const TEMPLATES: Template[] = [
-  {
-    id: "pop", name: "Pop", blurb: "One word at a time, big and punchy",
-    font: "montserrat", weight: 900, size: 0.11, maxWords: 1, maxChars: 14, y: 0.62, uppercase: false,
-    text: "#ffffff", hi: "#ffe600",
-    render(a) {
-      setFont(a);
-      const w = a.line.words[0];
-      for (const p of layout(a)) {
-        word(a, a.texts[p.i], p, {
-          fill: emphasized(a, p.i) ? a.hi : a.text, stroke: "#000", strokeW: 0.2, scale: pop(w, a.t, 0.25),
-        });
-      }
-    },
-  },
-  {
-    id: "punch", name: "Punch", blurb: "Bold caps, the spoken word lights up",
-    font: "anton", weight: 400, size: 0.085, maxWords: 3, maxChars: 18, y: 0.66, uppercase: true,
-    text: "#ffffff", hi: "#ffe600",
-    render(a) {
-      setFont(a);
-      const act = activeIndex(a.line.words, a.t);
-      // Wide gap: the spoken word grows and mustn't touch its neighbours.
-      for (const p of layout(a, { gap: 0.45 })) {
-        const on = p.i === act;
-        word(a, a.texts[p.i], p, {
-          fill: on || emphasized(a, p.i) ? a.hi : a.text, stroke: "#000", strokeW: 0.18,
-          scale: on ? 1.05 * pop(a.line.words[p.i], a.t, 0.08) : 1, shadow: "rgba(0,0,0,0.5)", blur: 0.2,
-        });
-      }
-    },
-  },
-  {
-    id: "karaoke", name: "Karaoke", blurb: "Words fill with colour as they're said",
-    font: "poppins", weight: 800, size: 0.06, maxWords: 6, maxChars: 34, y: 0.72, uppercase: false,
-    text: "#ffffff", hi: "#3cff7a",
-    render(a) {
-      setFont(a);
-      for (const p of layout(a)) {
-        const said = a.line.words[p.i].start <= a.t;
-        word(a, a.texts[p.i], p, {
-          fill: said || emphasized(a, p.i) ? a.hi : a.text, stroke: "#000", strokeW: 0.14,
-        });
-      }
-    },
-  },
-  {
-    id: "bubble", name: "Bubble", blurb: "Each word in its own pill",
-    font: "poppins", weight: 700, size: 0.058, maxWords: 4, maxChars: 26, y: 0.7, uppercase: false,
-    text: "#111111", hi: "#ff5a36",
-    render(a) {
-      setFont(a);
-      const act = activeIndex(a.line.words, a.t);
-      for (const p of layout(a, { pad: 0.32, gap: 0.18, lead: 1.5 })) {
-        const on = p.i === act || emphasized(a, p.i);
-        const s = p.i === act ? pop(a.line.words[p.i], a.t, 0.08) : 1;
-        a.ctx.save();
-        a.ctx.translate(p.x + p.w / 2, p.y);
-        a.ctx.scale(s, s);
-        roundRect(a.ctx, -p.w / 2, -a.px * 0.66, p.w, a.px * 1.32, a.px * 0.4, on ? a.hi : "#ffffff");
-        a.ctx.restore();
-        word(a, a.texts[p.i], p, { fill: on ? "#ffffff" : a.text, pad: 0.32, scale: s });
-      }
-    },
-  },
-  {
-    id: "classic", name: "Classic", blurb: "Clean subtitles on a dark band",
-    font: "inter", weight: 600, size: 0.045, maxWords: 9, maxChars: 44, y: 0.82, uppercase: false,
-    text: "#ffffff", hi: "#ffe600",
-    render(a) {
-      setFont(a);
-      const placed = layout(a, { gap: 0.26, lead: 1.35 });
-      const rows = new Map<number, Placed[]>();
-      for (const p of placed) rows.set(p.y, [...(rows.get(p.y) ?? []), p]);
-      for (const [y, row] of rows) {
-        const x0 = row[0].x - a.px * 0.4;
-        const x1 = row.at(-1)!.x + row.at(-1)!.w + a.px * 0.4;
-        roundRect(a.ctx, x0, y - a.px * 0.68, x1 - x0, a.px * 1.36, a.px * 0.18, "rgba(0,0,0,0.62)");
-      }
-      for (const p of placed) word(a, a.texts[p.i], p, { fill: emphasized(a, p.i) ? a.hi : a.text });
-    },
-  },
-  {
-    id: "minimal", name: "Minimal", blurb: "Soft lowercase, unspoken words dimmed",
-    font: "inter", weight: 600, size: 0.052, maxWords: 5, maxChars: 30, y: 0.7, uppercase: false,
-    text: "#ffffff", hi: "#ffffff",
-    render(a) {
-      setFont(a);
-      for (const p of layout(a)) {
-        const said = a.line.words[p.i].start <= a.t;
-        word(a, a.texts[p.i].toLowerCase(), p, {
-          fill: emphasized(a, p.i) ? a.hi : a.text, alpha: said ? 1 : 0.45, shadow: "rgba(0,0,0,0.55)", blur: 0.3,
-        });
-      }
-    },
-  },
-  {
-    id: "bazaar", name: "Bazaar", blurb: "Loud colours, every word different",
-    font: "anton", weight: 400, size: 0.09, maxWords: 3, maxChars: 18, y: 0.64, uppercase: true,
-    text: "#ffffff", hi: "#ffe600",
-    render(a) {
-      setFont(a);
-      const palette = ["#ffe600", "#ff4fd8", "#2ee6ff", "#3cff7a", "#ff8a1f"];
-      const act = activeIndex(a.line.words, a.t);
-      for (const p of layout(a, { gap: 0.45 })) {
-        const w = a.line.words[p.i];
-        const color = palette[(Number(w.id.replace(/\D/g, "")) || p.i) % palette.length];
-        word(a, a.texts[p.i], p, {
-          fill: color, stroke: "#000", strokeW: 0.2, scale: p.i === act ? pop(w, a.t, 0.2) : 1,
-        });
-      }
-    },
-  },
-  {
-    id: "neon", name: "Neon", blurb: "Glowing condensed type",
-    font: "bebas", weight: 400, size: 0.1, maxWords: 3, maxChars: 20, y: 0.64, uppercase: true,
-    text: "#ffffff", hi: "#ff4fd8",
-    render(a) {
-      setFont(a);
-      const act = activeIndex(a.line.words, a.t);
-      for (const p of layout(a, { gap: 0.36 })) {
-        const on = p.i === act || emphasized(a, p.i);
-        word(a, a.texts[p.i], p, {
-          fill: on ? a.hi : a.text, shadow: on ? a.hi : "#2ee6ff", blur: 0.5,
-          scale: p.i === act ? pop(a.line.words[p.i], a.t, 0.1) : 1,
-        });
-      }
-    },
-  },
-  {
-    id: "typewriter", name: "Typewriter", blurb: "Words appear as they're spoken",
-    font: "poppins", weight: 600, size: 0.05, maxWords: 6, maxChars: 34, y: 0.74, uppercase: false,
-    text: "#ffffff", hi: "#ffe600",
-    render(a) {
-      setFont(a);
-      for (const p of layout(a, { lead: 1.45 })) {
-        const w = a.line.words[p.i];
-        if (w.start > a.t) continue;
-        roundRect(a.ctx, p.x - a.px * 0.14, p.y - a.px * 0.62, p.w + a.px * 0.28, a.px * 1.24, a.px * 0.12, "rgba(0,0,0,0.78)");
-        word(a, a.texts[p.i], p, { fill: emphasized(a, p.i) ? a.hi : a.text, alpha: clamp((a.t - w.start) / 0.08) });
-      }
-    },
-  },
-  {
-    id: "headline", name: "Headline", blurb: "Two huge words, stacked",
-    font: "montserrat", weight: 900, size: 0.12, maxWords: 2, maxChars: 14, y: 0.6, uppercase: true,
-    text: "#ffffff", hi: "#ffe600",
-    render(a) {
-      setFont(a);
-      const act = activeIndex(a.line.words, a.t);
-      // One word per row: the second row takes the highlight colour.
-      const lead = a.px * 1.05;
-      const top = a.cy - ((a.texts.length - 1) * lead) / 2;
-      a.texts.forEach((s, i) => {
-        const w = a.ctx.measureText(s).width;
-        const p = { i, x: a.W / 2 - w / 2, y: top + i * lead, w };
-        word(a, s, p, {
-          fill: i % 2 || emphasized(a, i) ? a.hi : a.text, stroke: "#000", strokeW: 0.16,
-          scale: i === act ? pop(a.line.words[i], a.t, 0.14) : 1,
-        });
-      });
-    },
-  },
-];
-
-export const templateById = (id: TemplateId) => TEMPLATES.find((t) => t.id === id) ?? TEMPLATES[0];
-
-export function defaultStyle(id: TemplateId = "punch"): Style {
-  const t = templateById(id);
-  return {
-    template: id, size: 1, y: t.y, uppercase: t.uppercase, emojis: false,
-    wordsPerLine: null, textColor: null, highlightColor: null,
-  };
+/** Loads the faces a style needs for this text before drawing or exporting. */
+export function loadFonts(style?: Style, text = "") {
+  if (style) return ensureFont(style.font, style.weight, text, style.italic);
+  return Promise.all(TEMPLATES.map((x) => ensureFont(x.style.font, x.style.weight, text, x.style.italic)));
 }
 
-export function lineBudget(style: Style) {
-  const t = templateById(style.template);
-  const words = style.wordsPerLine ?? t.maxWords;
-  return { maxWords: words, maxChars: Math.max(t.maxChars, words * 6) };
-}
-
-/** Draws whatever caption is on screen at time t. The caller clears or draws the frame first. */
-export function drawCaptions(ctx: Ctx, W: number, H: number, t: number, lines: Line[], style: Style) {
-  const line = lineAt(lines, t);
-  if (!line) return;
-  const tpl = templateById(style.template);
-  const ref = Math.min(W, H * 0.75);
-  const px = tpl.size * ref * style.size;
-  const texts = line.words.map((w) => (style.uppercase ? w.text.toUpperCase() : w.text));
-  const args: Args = {
-    ctx, W, H, t, line, texts, px, cy: style.y * H, tpl,
-    text: style.textColor ?? tpl.text, hi: style.highlightColor ?? tpl.hi,
-  };
-  ctx.save();
-  tpl.render(args);
-  if (style.emojis) drawEmoji(args);
-  ctx.restore();
-}
-
-function drawEmoji(a: Args) {
-  const said = a.line.words.filter((w) => w.emoji && w.start <= a.t).at(-1);
-  if (!said?.emoji) return;
-  const s = a.px * 1.3 * pop(said, a.t, 0.35);
-  a.ctx.font = `${s}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-  a.ctx.textAlign = "center";
-  a.ctx.textBaseline = "middle";
-  a.ctx.fillText(said.emoji, a.W / 2, a.cy - a.px * 1.9);
-}
-
-/** Waits for every caption face so the first exported frame isn't in a fallback font. */
-export async function loadFonts() {
-  await Promise.all(
-    TEMPLATES.map((t) => document.fonts.load(`${t.weight} 40px ${FONT_FAMILIES[t.font]}`).catch(() => [])),
-  );
-}
+export const fontLabel = (s: Style) => fontMeta(s.font).name;

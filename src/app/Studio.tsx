@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { extractWav } from "@/lib/audio";
 import { minutesLabel } from "@/lib/pricing";
-import { FONT_FAMILIES, defaultStyle, type Style } from "@/lib/templates";
+import { defaultStyle, normalizeStyle, type Style } from "@/lib/templates";
 import type { TranscribeResult, Word } from "@/lib/types";
 import { useAccount } from "./Account";
 import Editor from "./Editor";
-import { anton, bebas, inter, montserrat, poppins } from "./fonts";
+import "./fonts";
 import Upload from "./Upload";
 
 const MAX_SECONDS = 5 * 60;
@@ -32,14 +32,6 @@ export default function Studio() {
   const [phase, setPhase] = useState<Phase>({ kind: "upload" });
   const account = useAccount();
 
-  useEffect(() => {
-    // Canvas needs the real family names next/font generated.
-    FONT_FAMILIES.inter = inter.style.fontFamily;
-    FONT_FAMILIES.montserrat = montserrat.style.fontFamily;
-    FONT_FAMILIES.anton = anton.style.fontFamily;
-    FONT_FAMILIES.poppins = poppins.style.fontFamily;
-    FONT_FAMILIES.bebas = bebas.style.fontFamily;
-  }, []);
 
   async function start(file: File, opts: { dictionary: string; language: string; script: "latin" | "native" }) {
     const key = `${cacheKey(file)}:${opts.language}:${opts.script}`;
@@ -111,7 +103,9 @@ export default function Studio() {
 function readSaved(key: string): Pick<Project, "words" | "style" | "duration"> | null {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as Pick<Project, "words" | "style" | "duration">;
+    return { ...saved, style: normalizeStyle(saved.style) };
   } catch {
     return null;
   }

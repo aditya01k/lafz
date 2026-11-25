@@ -279,8 +279,8 @@ const FEATURES = [
   { k: "01", title: "Spelled like you text", body: "“yaar kya scene hai”, not “Your car seen hey”. Every word is written the casual way creators actually type it." },
   { k: "02", title: "Timed word by word", body: "Each word pops in as it's said. Fix a word and its timing stays put." },
   { k: "03", title: "Built on Sarvam", body: "India's own speech models hear Indian accents, code-switching and regional languages properly." },
-  { k: "04", title: "Renders on your device", body: "Export runs in your browser. No upload queue, no waiting on a server, your video never leaves." },
-  { k: "05", title: "Made for editors too", body: "Transparent WebM for Premiere, DaVinci and Final Cut. Green screen and SRT for everything else." },
+  { k: "04", title: "Every look, fully yours", body: "12 presets, 24 current fonts, Indian-script faces built in. Change the colours, highlight, outline, shadow, background, animation and layout of any of them." },
+  { k: "05", title: "Rendered on your device", body: "Export runs in your browser, so your video never leaves it. MP4, transparent WebM for Premiere, DaVinci and Final Cut, green screen and SRT." },
   { k: "06", title: "Open source", body: "AGPL-3.0. Read the code, run it on your own machine for free, change anything." },
 ];
 

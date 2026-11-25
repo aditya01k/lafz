@@ -87,18 +87,18 @@ export default function Editor({
   useEffect(() => {
     linesRef.current = lines;
     styleRef.current = style;
-  }, [lines, style]);
+    // Fetch the face (and any Indian-script face) this style needs; frames redraw on their own.
+    void loadFonts(style, words.map((w) => w.text).join(" "));
+  }, [lines, style, words]);
   useEffect(() => {
     let raf = 0;
-    let fontsReady = false;
-    void loadFonts().then(() => (fontsReady = true));
     const tick = () => {
       const v = video.current;
       const c = canvas.current;
       if (v && c && c.width) {
         const ctx = c.getContext("2d")!;
         ctx.clearRect(0, 0, c.width, c.height);
-        if (fontsReady) drawCaptions(ctx, c.width, c.height, v.currentTime, linesRef.current, styleRef.current);
+        drawCaptions(ctx, c.width, c.height, v.currentTime, linesRef.current, styleRef.current);
         setTime(v.currentTime);
       }
       raf = requestAnimationFrame(tick);
@@ -390,7 +390,7 @@ function Captions({
                 >
                   {fmt(l.start)}
                 </button>
-                <div className="flex flex-wrap gap-x-1 gap-y-0.5 text-[15px] leading-relaxed">
+                <div dir="auto" className="flex flex-wrap gap-x-1 gap-y-0.5 text-[15px] leading-relaxed">
                   {l.words.map((w) => (
                     <button
                       key={w.id}

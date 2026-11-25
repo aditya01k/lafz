@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { buildLines, type Line } from "@/lib/lines";
-import { TEMPLATES, defaultStyle, drawCaptions, loadFonts, type Style, type TemplateId } from "@/lib/templates";
+import { TEMPLATES, defaultStyle, drawCaptions, lineBudget, loadFonts, templateById, type Style, type TemplateId } from "@/lib/templates";
+import "./fonts";
 import type { Word } from "@/lib/types";
 
 /** Times a sentence like natural speech: longer words take longer. */
@@ -26,7 +27,7 @@ const SCENES: Scene[] = [
   { lang: "Hindi · English letters", text: "bhai yeh jagah ekdum mast hai", template: "punch", colors: ["#ff7a45", "#7a1f5c", "#1b0f2e"] },
   { lang: "Hindi · Hindi script", text: "आज हम गोवा जा रहे हैं", template: "karaoke", colors: ["#1fb5a8", "#164a7a", "#0b1426"] },
   { lang: "Tamil · English letters", text: "machi idhu semma place da", template: "bubble", colors: ["#ffb347", "#c2410c", "#2a0f06"] },
-  { lang: "Punjabi · English letters", text: "oye chak de phatte yaar", template: "bazaar", colors: ["#9b5cff", "#2d1b69", "#0d0820"] },
+  { lang: "Punjabi · English letters", text: "oye chak de phatte yaar", template: "beast", colors: ["#9b5cff", "#2d1b69", "#0d0820"] },
   { lang: "Bengali · English letters", text: "ki darun jayga re", template: "neon", colors: ["#2563eb", "#0f1f4d", "#05070f"] },
   { lang: "Marathi · English letters", text: "lai bhari", template: "headline", colors: ["#22c55e", "#14532d", "#04130a"] },
 ];
@@ -65,19 +66,20 @@ export function HeroDemo() {
   useEffect(() => {
     const prepared = SCENES.map((s) => {
       const words = speak(s.text, 0.35);
-      const tpl = TEMPLATES.find((t) => t.id === s.template)!;
+      const style: Style = { ...defaultStyle(s.template), y: 0.62 };
+      style.size *= 1.25;
+      const b = lineBudget(style);
+      void loadFonts(style, s.text);
       return {
         ...s,
-        lines: buildLines(words, tpl.maxWords, tpl.maxChars),
-        style: { ...defaultStyle(s.template), y: 0.62, size: 1.25 } as Style,
+        lines: buildLines(words, b.maxWords, b.maxChars),
+        style,
         length: words.at(-1)!.end + 1.1,
       };
     });
     let raf = 0;
-    let ready = false;
     let idx = 0;
     let t0 = performance.now();
-    void loadFonts().then(() => (ready = true));
     const tick = (now: number) => {
       const c = canvas.current;
       if (c) {
@@ -91,7 +93,7 @@ export function HeroDemo() {
           t = 0;
         }
         backdrop(ctx, c.width, c.height, now / 1000, prepared[idx].colors);
-        if (ready) drawCaptions(ctx, c.width, c.height, t, prepared[idx].lines, prepared[idx].style);
+        drawCaptions(ctx, c.width, c.height, t, prepared[idx].lines, prepared[idx].style);
       }
       raf = requestAnimationFrame(tick);
     };
@@ -100,7 +102,7 @@ export function HeroDemo() {
   }, []);
 
   const s = SCENES[scene];
-  const tpl = TEMPLATES.find((t) => t.id === s.template)!;
+  const tpl = templateById(s.template);
   return (
     <div className="relative mx-auto w-[min(300px,72vw)]">
       <div className="rounded-[44px] border border-white/10 bg-black p-2.5 shadow-[0_40px_120px_-20px_rgba(255,197,49,0.25)]">
@@ -123,17 +125,16 @@ export function Playground() {
 
   useEffect(() => {
     const words = speak(text || "kuch toh likho", 0.25);
-    data.current = TEMPLATES.map((tpl) => ({
-      lines: buildLines(words, tpl.maxWords, tpl.maxChars),
-      length: words.at(-1)!.end + 0.9,
-    }));
+    data.current = TEMPLATES.map((tpl) => {
+      const b = lineBudget(tpl.style);
+      void loadFonts(tpl.style, text);
+      return { lines: buildLines(words, b.maxWords, b.maxChars), length: words.at(-1)!.end + 0.9 };
+    });
   }, [text]);
 
   useEffect(() => {
     let raf = 0;
-    let ready = false;
     let last = 0;
-    void loadFonts().then(() => (ready = true));
     const start = performance.now();
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
@@ -146,7 +147,7 @@ export function Playground() {
         const ctx = c.getContext("2d")!;
         const t = ((now - start) / 1000) % d.length;
         backdrop(ctx, c.width, c.height, now / 1000 + i, SCENES[i % SCENES.length].colors);
-        if (ready) drawCaptions(ctx, c.width, c.height, t, d.lines, { ...defaultStyle(tpl.id), y: 0.55, size: 1.35 });
+        drawCaptions(ctx, c.width, c.height, t, d.lines, { ...tpl.style, y: 0.55, size: tpl.style.size * 1.35 });
       });
     };
     raf = requestAnimationFrame(tick);
@@ -164,7 +165,7 @@ export function Playground() {
           aria-label="Type a line to preview"
         />
       </div>
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {TEMPLATES.map((tpl, i) => (
           <figure key={tpl.id}>
             <canvas
@@ -185,21 +186,20 @@ export function Playground() {
   );
 }
 
-/** One style, looping a sample line: the editor's template picker. */
-export function StyleLoop({ id, text, className }: { id: TemplateId; text: string; className?: string }) {
+/** A style looping a sample line: the editor's preset picker and live preview cards. */
+export function StyleLoop({ style, text, className }: { style: Style; text: string; className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const tpl = TEMPLATES.find((t) => t.id === id)!;
     const words = speak(text, 0.2);
-    const lines = buildLines(words, tpl.maxWords, tpl.maxChars);
+    const b = lineBudget(style);
+    const lines = buildLines(words, b.maxWords, b.maxChars);
     const length = words.at(-1)!.end + 0.8;
-    const style = { ...defaultStyle(id), y: 0.55, size: 1.6 };
-    const colors = SCENES[TEMPLATES.indexOf(tpl) % SCENES.length].colors;
+    const s = { ...style, y: 0.55, size: style.size * 1.6 };
+    const colors = SCENES[Math.max(0, TEMPLATES.findIndex((x) => x.id === style.preset)) % SCENES.length].colors;
+    void loadFonts(style, text);
     let raf = 0;
-    let ready = false;
     let last = 0;
     const start = performance.now();
-    void loadFonts().then(() => (ready = true));
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
       if (now - last < 40) return;
@@ -208,10 +208,10 @@ export function StyleLoop({ id, text, className }: { id: TemplateId; text: strin
       if (!c) return;
       const ctx = c.getContext("2d")!;
       backdrop(ctx, c.width, c.height, now / 1000, colors);
-      if (ready) drawCaptions(ctx, c.width, c.height, ((now - start) / 1000) % length, lines, style);
+      drawCaptions(ctx, c.width, c.height, ((now - start) / 1000) % length, lines, s);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [id, text]);
+  }, [style, text]);
   return <canvas ref={ref} width={240} height={300} className={className} />;
 }

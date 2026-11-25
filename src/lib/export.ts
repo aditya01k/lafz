@@ -13,6 +13,8 @@ import {
 import type { Line } from "./lines";
 import { drawCaptions, loadFonts, type Style } from "./templates";
 
+const allText = (lines: Line[]) => lines.flatMap((l) => l.words.map((w) => w.text)).join(" ");
+
 /**
  * Exports run in the browser (WebCodecs via Mediabunny), so rendering costs us
  * nothing per video. That's what keeps the half-price plans profitable.
@@ -29,7 +31,7 @@ export async function exportBurnedIn(
   onProgress: Progress,
   signal?: AbortSignal,
 ): Promise<Blob> {
-  await loadFonts();
+  await loadFonts(style, allText(lines));
   const { width, height } = even(size);
   const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext("2d")!;
@@ -71,7 +73,7 @@ export async function exportOverlay(
   onProgress: Progress,
   signal?: AbortSignal,
 ): Promise<Blob> {
-  await loadFonts();
+  await loadFonts(style, allText(lines));
   const { width, height } = even(size);
   const fps = 30;
   const canvas = new OffscreenCanvas(width, height);
