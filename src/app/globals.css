@@ -24,6 +24,7 @@
   --color-accent-ink: var(--accent-ink);
   --font-sans: var(--font-geist);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-instrument);
 }
 
 html {

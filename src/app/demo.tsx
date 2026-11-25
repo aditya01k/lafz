@@ -108,10 +108,10 @@ export function HeroDemo() {
       <div className="rounded-[44px] border border-white/10 bg-black p-2.5 shadow-[0_40px_120px_-20px_rgba(255,197,49,0.25)]">
         <canvas ref={canvas} width={540} height={960} className="block aspect-[9/16] w-full rounded-[34px]" />
       </div>
-      <div className="absolute -bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-hairline bg-surface/90 px-3.5 py-1.5 text-[12px] font-medium backdrop-blur">
+      <div className="absolute -bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-white/10 bg-[#1d1714] px-3.5 py-1.5 text-[12px] font-medium text-white">
         <span className="size-1.5 rounded-full bg-accent" />
         {s.lang}
-        <span className="text-muted">· {tpl.name}</span>
+        <span className="text-white/55">· {tpl.name}</span>
       </div>
     </div>
   );
@@ -161,7 +161,7 @@ export function Playground() {
           value={text}
           maxLength={60}
           onChange={(e) => setText(e.target.value)}
-          className="w-full rounded-2xl border border-hairline bg-surface px-5 py-4 text-center text-[18px] font-semibold outline-none focus:border-accent"
+          className="w-full rounded-2xl border border-black/10 bg-white px-5 py-4 text-center text-[18px] font-medium text-[#1d1714] outline-none focus:border-black/30"
           aria-label="Type a line to preview"
         />
       </div>
@@ -174,7 +174,7 @@ export function Playground() {
               }}
               width={360}
               height={480}
-              className="block aspect-[3/4] w-full rounded-2xl"
+              className="block aspect-[3/4] w-full rounded-2xl shadow-[0_18px_40px_-24px_rgba(29,23,20,0.5)]"
             />
             <figcaption className="mt-2 px-1" title={tpl.blurb}>
               <span className="text-[14px] font-semibold">{tpl.name}</span>

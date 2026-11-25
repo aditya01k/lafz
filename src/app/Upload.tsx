@@ -5,71 +5,51 @@ import { LANGUAGES, languageById, type Script } from "@/lib/languages";
 import { AccountButton } from "./Account";
 import { HeroDemo, Playground } from "./demo";
 
+/**
+ * The landing page. Warm editorial look (cream paper, deep maroon, thin display type with an
+ * italic serif accent). The editor stays dark; this page sells it. "Open source, free on your
+ * own machine" is the first thing said and is repeated in every section that talks price.
+ */
+
 const STEPS = ["Reading the audio", "Listening to every word", "Fixing the spellings"];
 const GITHUB = "https://github.com/aditya01k/lafz";
 const CLONE = "git clone https://github.com/aditya01k/lafz";
+
+// The page's own palette, kept here so the editor's dark theme is untouched.
+const C = {
+  paper: "#ece6dc",
+  card: "#f6f2ea",
+  ink: "#1d1714",
+  soft: "#6f645c",
+  line: "rgba(29,23,20,0.12)",
+  maroon: "#3a1515",
+  maroonSoft: "#5a2626",
+};
 
 type OnFile = (f: File, opts: { dictionary: string; language: string; script: Script }) => void;
 
 export default function Upload({ onFile, error, working }: { onFile: OnFile; error?: string; working?: { step: number; name: string } }) {
   const pickRef = useRef<() => void>(() => {});
+  const start = () => {
+    document.getElementById("try")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => pickRef.current(), 450);
+  };
   return (
-    <div className="flex-1">
-      <Nav onStart={() => pickRef.current()} />
+    <div className="flex-1" style={{ background: C.paper, color: C.ink }}>
+      <Nav onStart={start} />
       <main>
-        {/* Hero */}
-        <section className="relative overflow-hidden">
-          <div className="grid-bg pointer-events-none absolute inset-0" />
-          <div className="relative mx-auto max-w-5xl px-5 pt-20 pb-14 text-center sm:pt-28">
-            <a
-              href={GITHUB}
-              className="inline-flex items-center gap-2 rounded-full border border-hairline bg-white/[0.03] py-1 pr-3 pl-1.5 font-mono text-[12px] text-muted transition hover:border-white/20 hover:text-foreground"
-            >
-              <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-black">Open source</span>
-              Free to run on your own machine →
-            </a>
-            <h1 className="headline mx-auto mt-7 max-w-4xl text-[44px] leading-[1.02] font-semibold tracking-[-0.045em] sm:text-[72px]">
-              Captions for every Indian language.
-            </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-muted sm:text-[19px]">
-              Hindi, Tamil, Telugu and 8 more, in English letters or their own script, timed word by word. Open source: run it free on
-              your own machine, or use ours and pay per minute.
-            </p>
-            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <button
-                onClick={() => pickRef.current()}
-                className="h-11 rounded-full bg-white px-6 text-[15px] font-medium text-black transition hover:bg-white/85"
-              >
-                Caption a reel
-              </button>
-              <Command text={CLONE} />
-            </div>
-          </div>
+        <Hero onStart={start} />
+        <Statement />
 
-          {/* Product frame */}
-          <div className="relative mx-auto max-w-5xl px-5 pb-24">
-            <div className="overflow-hidden rounded-2xl border border-hairline bg-surface shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_30px_120px_-30px_rgba(255,255,255,0.12)]">
-              <div className="flex h-10 items-center gap-1.5 border-b border-hairline px-4">
-                <span className="size-2.5 rounded-full bg-white/15" />
-                <span className="size-2.5 rounded-full bg-white/15" />
-                <span className="size-2.5 rounded-full bg-white/15" />
-                <span className="ml-3 font-mono text-[12px] text-muted">lafz · new project</span>
-              </div>
-              <div className="grid items-center gap-10 p-6 sm:p-10 lg:grid-cols-[1fr_auto]">
-                <div className="text-left">
-                  {working ? <Progress {...working} /> : <Dropzone onFile={onFile} error={error} pickRef={pickRef} />}
-                </div>
-                <HeroDemo />
-              </div>
-            </div>
+        <section id="try" className="px-4 pb-24">
+          <div className="mx-auto max-w-3xl rounded-[28px] border p-6 sm:p-10" style={{ background: C.card, borderColor: C.line }}>
+            {working ? <Progress {...working} /> : <Dropzone onFile={onFile} error={error} pickRef={pickRef} />}
           </div>
         </section>
 
-        <Features />
-
-        <section id="styles" className="border-t border-hairline">
-          <div className="mx-auto max-w-6xl px-5 py-24">
-            <SectionHead kicker="Styles" title="Type a line. See it in every style." sub="Every preview is drawn by the same renderer that exports your video." />
+        <section id="styles" className="border-t px-4 py-24" style={{ borderColor: C.line }}>
+          <div className="mx-auto max-w-6xl">
+            <Head kicker="Styles" title={<>Type a line. <Em>See it</Em> in every style.</>} sub="Seven looks to start from, 28 trending fonts, or upload your own. Every colour, outline, highlight and animation is yours to change." />
             <div className="mt-12">
               <Playground />
             </div>
@@ -78,18 +58,18 @@ export default function Upload({ onFile, error, working }: { onFile: OnFile; err
 
         <Compare />
         <Languages />
-        <RunLocally />
-        <Pricing onStart={() => pickRef.current()} />
+        <OpenSource />
+        <Pricing onStart={start} />
       </main>
-      <footer className="border-t border-hairline">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-10 text-[13px] text-muted">
+      <footer className="border-t px-4" style={{ borderColor: C.line }}>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 py-10 text-[13px]" style={{ color: C.soft }}>
           <span className="flex items-center gap-2">
-            <Logo /> Open source captions for Indian creators
+            <Logo /> Open source captions, made in India
           </span>
-          <span className="flex gap-5 font-mono text-[12px]">
-            <a href={GITHUB} className="hover:text-foreground">GitHub</a>
+          <span className="flex gap-5">
+            <a href={GITHUB} className="hover:underline">GitHub</a>
             <span>AGPL-3.0</span>
-            <span>Made in India</span>
+            <span>Free to self-host</span>
           </span>
         </div>
       </footer>
@@ -97,9 +77,11 @@ export default function Upload({ onFile, error, working }: { onFile: OnFile; err
   );
 }
 
+const Em = ({ children }: { children: React.ReactNode }) => <span className="font-serif font-normal italic">{children}</span>;
+
 function Logo() {
   return (
-    <span className="flex items-center gap-1.5 text-[16px] font-semibold tracking-tight text-foreground">
+    <span className="flex items-center gap-1.5 text-[17px] font-semibold tracking-tight" style={{ color: C.ink }}>
       <span className="size-3 rounded-[3px] bg-accent" />
       lafz
     </span>
@@ -108,26 +90,27 @@ function Logo() {
 
 function Nav({ onStart }: { onStart: () => void }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-hairline bg-black/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-7 px-5">
+    <header className="sticky top-0 z-30 px-4 pt-4">
+      <div
+        className="mx-auto flex h-14 max-w-6xl items-center gap-6 rounded-2xl border px-4 backdrop-blur-xl"
+        style={{ background: "rgba(246,242,234,0.8)", borderColor: C.line }}
+      >
         <Logo />
-        <nav className="hidden gap-6 text-[14px] text-muted md:flex">
-          <a href="#features" className="hover:text-foreground">Features</a>
-          <a href="#styles" className="hover:text-foreground">Styles</a>
-          <a href="#languages" className="hover:text-foreground">Languages</a>
-          <a href="#self-host" className="hover:text-foreground">Self-host</a>
-          <a href="#pricing" className="hover:text-foreground">Pricing</a>
+        <nav className="hidden gap-6 text-[14px] md:flex" style={{ color: C.soft }}>
+          <a href="#styles" className="hover:text-black">Styles</a>
+          <a href="#languages" className="hover:text-black">Languages</a>
+          <a href="#open-source" className="hover:text-black">Open source</a>
+          <a href="#pricing" className="hover:text-black">Pricing</a>
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <AccountButton />
-          <a
-            href={GITHUB}
-            className="flex h-8 items-center gap-2 rounded-full border border-hairline px-3 text-[13px] text-muted transition hover:border-white/20 hover:text-foreground"
-          >
+          <div className="hidden sm:block [&_button]:!border-black/15 [&_button]:!text-[#1d1714] [&_.text-muted]:!text-[#6f645c]">
+            <AccountButton />
+          </div>
+          <a href={GITHUB} className="flex h-9 items-center gap-2 rounded-xl border px-3 text-[13px] font-medium" style={{ borderColor: C.line, background: "#fff" }}>
             <GitHubIcon className="size-4" />
             <span className="hidden sm:inline">Star</span>
           </a>
-          <button onClick={onStart} className="h-8 rounded-full bg-white px-3.5 text-[13px] font-medium text-black hover:bg-white/85">
+          <button onClick={onStart} className="h-9 rounded-xl px-4 text-[13px] font-medium text-white" style={{ background: C.maroon }}>
             Caption a reel
           </button>
         </div>
@@ -136,7 +119,139 @@ function Nav({ onStart }: { onStart: () => void }) {
   );
 }
 
-function Command({ text }: { text: string }) {
+/** Thin circuit lines behind the hero, like a schematic of the pipeline. */
+function Circuit() {
+  return (
+    <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden>
+      <g fill="none" stroke={C.ink} strokeOpacity="0.1" strokeWidth="1">
+        <path d="M0 220 H180 V120 H360 V60" />
+        <path d="M0 520 H120 V420 H280 V340 H400" />
+        <path d="M1200 180 H1020 V300 H860 V380" />
+        <path d="M1200 560 H1060 V460 H900" />
+        <path d="M120 800 V680 H330 V600" />
+        <path d="M1080 800 V700 H860 V640" />
+      </g>
+      <g fill={C.card} stroke={C.ink} strokeOpacity="0.15">
+        {[[180, 120], [280, 340], [1020, 300], [1060, 460], [330, 680], [860, 700]].map(([x, y]) => (
+          <rect key={`${x}-${y}`} x={x - 7} y={y - 7} width="14" height="14" rx="3" />
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+function Hero({ onStart }: { onStart: () => void }) {
+  return (
+    <section className="relative overflow-hidden px-4 pt-16 pb-10 sm:pt-24">
+      <Circuit />
+      <div className="relative mx-auto max-w-4xl text-center">
+        <a
+          href="#open-source"
+          className="inline-flex items-center gap-2.5 rounded-full border py-1.5 pr-4 pl-1.5 text-[13px] font-medium shadow-sm"
+          style={{ background: "#fff", borderColor: C.line }}
+        >
+          <span className="rounded-full px-2.5 py-1 text-[12px] font-semibold text-white" style={{ background: C.maroon }}>
+            Open source
+          </span>
+          Free forever on your own machine
+          <span aria-hidden>→</span>
+        </a>
+        <h1 className="mt-8 text-[46px] leading-[1.02] font-normal tracking-[-0.045em] sm:text-[80px]">
+          Captions for every <Em>Indian</Em>
+          <br />
+          <span style={{ color: C.soft }}>language.</span>
+        </h1>
+        <p className="mx-auto mt-6 max-w-xl text-[17px] leading-relaxed sm:text-[19px]" style={{ color: C.soft }}>
+          Hindi, Tamil, Telugu and 8 more, in English letters or their own script, timed word by word.
+        </p>
+        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <button onClick={onStart} className="h-12 rounded-xl px-6 text-[15px] font-medium text-white shadow-[0_8px_24px_-8px_rgba(58,21,21,0.6)]" style={{ background: C.maroon }}>
+            Caption a reel · ₹2/min
+          </button>
+          <a href="#open-source" className="flex h-12 items-center gap-2 rounded-xl border px-6 text-[15px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
+            <GitHubIcon className="size-4" /> Run it free · ₹0
+          </a>
+        </div>
+      </div>
+
+      {/* The product, with what matters pinned around it. */}
+      <div className="relative mx-auto mt-16 grid max-w-6xl items-center gap-6 lg:grid-cols-[1fr_auto_1fr]">
+        <div className="order-2 space-y-4 lg:order-1 lg:justify-self-end">
+          <Floating title="Your letters or theirs" body={<>kya scene hai<br />क्या सीन है</>} />
+          <Floating title="Word-perfect timing" body="Each word pops in as it's said." />
+        </div>
+        <div className="order-1 lg:order-2">
+          <HeroDemo />
+        </div>
+        <div className="order-3 space-y-4 lg:justify-self-start">
+          <Floating dark title="Free to self-host" body={<span className="font-mono text-[12px]">$ git clone …/lafz</span>} />
+          <Floating title="Export anything" body="MP4 · Transparent · Green screen · SRT" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Floating({ title, body, dark }: { title: string; body: React.ReactNode; dark?: boolean }) {
+  return (
+    <div
+      className="w-full max-w-[280px] rounded-2xl border p-4 text-left shadow-[0_18px_40px_-24px_rgba(29,23,20,0.45)] lg:w-[260px]"
+      style={dark ? { background: C.maroon, borderColor: C.maroon, color: "#f6efe7" } : { background: C.card, borderColor: C.line }}
+    >
+      <div className="text-[13px] font-semibold">{title}</div>
+      <div className="mt-1.5 text-[14px] leading-snug opacity-75">{body}</div>
+    </div>
+  );
+}
+
+/** The maroon "about" band: one big sentence with small picture chips, then three numbers. */
+function Statement() {
+  const chip = (children: React.ReactNode) => (
+    <span className="mx-1 inline-flex -translate-y-1 items-center rounded-full bg-white/10 px-2.5 py-0.5 align-middle text-[15px] font-medium tracking-normal">
+      {children}
+    </span>
+  );
+  return (
+    <section className="mx-4 mb-24 rounded-[32px] px-6 py-20 text-center sm:px-12" style={{ background: C.maroon, color: "#f6efe7" }}>
+      <span className="rounded-md bg-white/10 px-2.5 py-1 text-[12px] font-medium tracking-wide">About lafz</span>
+      <p className="mx-auto mt-8 max-w-4xl text-[26px] leading-[1.3] tracking-[-0.02em] sm:text-[38px]">
+        Lafz {chip("🎙️ 11 languages")} captions your reels the way Indians actually type, and it&apos;s{" "}
+        {chip(<><GitHubIcon className="mr-1.5 size-3.5" /> open source</>)} <Em>free to run</Em>{" "}
+        <span className="opacity-50">on your own machine, forever. Or use ours and pay only for the minutes you caption.</span>
+      </p>
+      <div className="mx-auto mt-14 grid max-w-3xl grid-cols-3 divide-x divide-white/15">
+        {[
+          ["₹0", "to run it yourself"],
+          ["11", "Indian languages"],
+          ["₹2", "per minute, hosted"],
+        ].map(([n, l]) => (
+          <div key={l} className="px-2">
+            <div className="text-[34px] font-light tracking-[-0.03em] sm:text-[44px]">{n}</div>
+            <div className="mt-1 text-[12px] opacity-60 sm:text-[13px]">{l}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Head({ kicker, title, sub, light }: { kicker: string; title: React.ReactNode; sub?: string; light?: boolean }) {
+  return (
+    <div className="mx-auto max-w-2xl text-center">
+      <span className="rounded-md px-2.5 py-1 text-[12px] font-medium" style={light ? { background: "rgba(255,255,255,0.1)" } : { background: "#fff", border: `1px solid ${C.line}` }}>
+        {kicker}
+      </span>
+      <h2 className="mt-5 text-[36px] leading-[1.08] font-normal tracking-[-0.035em] sm:text-[52px]">{title}</h2>
+      {sub && (
+        <p className="mt-4 text-[17px] leading-relaxed" style={{ color: light ? "rgba(246,239,231,0.65)" : C.soft }}>
+          {sub}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Command({ text, dark }: { text: string; dark?: boolean }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -145,12 +260,12 @@ function Command({ text }: { text: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      className="group flex h-11 items-center gap-3 rounded-full border border-hairline bg-white/[0.03] px-5 font-mono text-[13px] text-muted transition hover:border-white/20 hover:text-foreground"
-      title="Copy"
+      className="group flex h-12 w-full max-w-md items-center gap-3 rounded-xl border px-4 font-mono text-[13px]"
+      style={dark ? { borderColor: "rgba(255,255,255,0.15)", background: "rgba(0,0,0,0.25)" } : { borderColor: C.line, background: "#fff" }}
     >
-      <span className="text-foreground/40">$</span>
-      <span className="max-w-[62vw] truncate">{text.replace("https://", "")}</span>
-      <span className="text-[11px] text-foreground/40 group-hover:text-foreground">{copied ? "Copied" : "Copy"}</span>
+      <span className="opacity-40">$</span>
+      <span className="min-w-0 flex-1 truncate text-left">{text.replace("https://", "")}</span>
+      <span className="text-[11px] opacity-50 group-hover:opacity-100">{copied ? "Copied" : "Copy"}</span>
     </button>
   );
 }
@@ -169,11 +284,16 @@ function Dropzone({ onFile, error, pickRef }: { onFile: OnFile; error?: string; 
   const pick = (f?: File | null) => {
     if (f && (f.type.startsWith("video/") || /\.(mp4|mov|m4v|webm)$/i.test(f.name))) onFile(f, { dictionary, language, script });
   };
+  const field = { background: "#fff", borderColor: C.line };
 
   return (
-    <div className="mx-auto max-w-md">
-      <div className="font-mono text-[12px] uppercase tracking-[0.12em] text-muted">Try it</div>
-      <h3 className="mt-2 text-[24px] font-semibold tracking-[-0.02em]">Drop a reel. Get captions in seconds.</h3>
+    <div>
+      <div className="text-center">
+        <span className="rounded-md border px-2.5 py-1 text-[12px] font-medium" style={field}>Try it</span>
+        <h3 className="mt-4 text-[30px] leading-tight font-normal tracking-[-0.03em] sm:text-[38px]">
+          Drop a reel. <Em>Captions in seconds.</Em>
+        </h3>
+      </div>
       <button
         type="button"
         onClick={() => input.current?.click()}
@@ -187,119 +307,83 @@ function Dropzone({ onFile, error, pickRef }: { onFile: OnFile; error?: string; 
           setDrag(false);
           pick(e.dataTransfer.files[0]);
         }}
-        className={`mt-6 flex w-full flex-col items-center rounded-xl border border-dashed px-6 py-10 transition ${
-          drag ? "border-white bg-white/[0.06]" : "border-white/20 bg-black hover:border-white/40"
-        }`}
+        className="mt-8 flex w-full flex-col items-center rounded-2xl border-2 border-dashed px-6 py-12 transition"
+        style={{ borderColor: drag ? C.maroon : "rgba(29,23,20,0.2)", background: drag ? "#fff" : "rgba(255,255,255,0.55)" }}
       >
-        <svg viewBox="0 0 24 24" className="size-6 text-muted" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" />
-        </svg>
-        <span className="mt-3 text-[15px] font-medium">Drop a video or click to browse</span>
-        <span className="mt-1 text-[13px] text-muted">MP4 or MOV, up to 5 min. The video stays on your device.</span>
+        <span className="flex size-11 items-center justify-center rounded-xl text-white" style={{ background: C.maroon }}>
+          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" />
+          </svg>
+        </span>
+        <span className="mt-4 text-[16px] font-medium">Drop a video or click to browse</span>
+        <span className="mt-1 text-[13px]" style={{ color: C.soft }}>MP4 or MOV, up to 5 min. The video stays on your device.</span>
       </button>
       <input ref={input} type="file" accept="video/*,.mov,.mp4" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
 
-      <div className="mt-4 grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-[13px]">
-        <label htmlFor="lang" className="text-muted">Language</label>
-        <select
-          id="lang"
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-          className="h-9 rounded-lg border border-hairline bg-black px-2.5 outline-none focus:border-white/30"
-        >
-          {LANGUAGES.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-        <span className="text-muted">Write in</span>
-        <div className="grid grid-cols-2 gap-1 rounded-lg border border-hairline bg-black p-1">
-          {(["latin", "native"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setScript(s)}
-              className={`rounded-md px-2 py-1.5 text-left transition ${script === s ? "bg-white/10 text-foreground" : "text-muted hover:text-foreground"}`}
-            >
-              <span className="block text-[12px] font-medium">{s === "latin" ? "English letters" : lang.scriptName}</span>
-              <span className="block truncate text-[12px] opacity-70">{s === "latin" ? lang.latinSample : lang.nativeSample}</span>
-            </button>
-          ))}
+      <div className="mt-5 grid gap-3 text-[13px] sm:grid-cols-[1fr_1.4fr]">
+        <label className="block">
+          <span style={{ color: C.soft }}>Language</span>
+          <select value={language} onChange={(e) => setLanguage(e.target.value)} className="mt-1.5 h-11 w-full rounded-xl border px-3 outline-none" style={field}>
+            {LANGUAGES.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div>
+          <span style={{ color: C.soft }}>Write in</span>
+          <div className="mt-1.5 grid grid-cols-2 gap-1 rounded-xl border p-1" style={field}>
+            {(["latin", "native"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setScript(s)}
+                className="rounded-lg px-2.5 py-1.5 text-left transition"
+                style={script === s ? { background: C.maroon, color: "#fff" } : { color: C.soft }}
+              >
+                <span className="block text-[12px] font-medium">{s === "latin" ? "English letters" : lang.scriptName}</span>
+                <span className="block truncate text-[12px] opacity-75">{s === "latin" ? lang.latinSample : lang.nativeSample}</span>
+              </button>
+            ))}
+          </div>
         </div>
-        <label htmlFor="dict" className="text-muted">Spell right</label>
-        <input
-          id="dict"
-          value={dictionary}
-          onChange={(e) => setDictionary(e.target.value)}
-          placeholder="Names and brands, e.g. Zostel, PhonePe"
-          className="h-9 rounded-lg border border-hairline bg-black px-3 outline-none placeholder:text-muted/50 focus:border-white/30"
-        />
       </div>
-      {error && <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-[13px] text-red-300">{error}</p>}
+      <input
+        value={dictionary}
+        onChange={(e) => setDictionary(e.target.value)}
+        placeholder="Names and brands to spell right, e.g. Zostel, PhonePe (optional)"
+        className="mt-3 h-11 w-full rounded-xl border px-3 text-[13px] outline-none placeholder:opacity-60"
+        style={field}
+      />
+      {error && <p className="mt-4 rounded-xl border border-red-700/20 bg-red-700/10 px-4 py-3 text-[13px] text-red-900">{error}</p>}
+      <p className="mt-5 text-center text-[12px]" style={{ color: C.soft }}>
+        ₹2 a minute here, or <a href="#open-source" className="underline">free on your own machine</a>.
+      </p>
     </div>
   );
 }
 
 function Progress({ step, name }: { step: number; name: string }) {
   return (
-    <div className="mx-auto max-w-md">
-      <div className="font-mono text-[12px] uppercase tracking-[0.12em] text-muted">Working</div>
-      <div className="mt-2 truncate text-[20px] font-semibold tracking-[-0.02em]">{name}</div>
+    <div className="mx-auto max-w-md py-4">
+      <div className="text-[12px] font-medium uppercase tracking-[0.12em]" style={{ color: C.soft }}>Working</div>
+      <div className="mt-2 truncate text-[22px] tracking-[-0.02em]">{name}</div>
       <ol className="mt-6 space-y-4">
         {STEPS.map((s, i) => (
           <li key={s} className="flex items-center gap-3 text-[15px]">
             <span
-              className={`flex size-5 items-center justify-center rounded-full text-[11px] font-bold ${
-                i < step ? "bg-white text-black" : i === step ? "animate-pulse border-2 border-white" : "border border-white/20"
-              }`}
+              className={`flex size-5 items-center justify-center rounded-full text-[11px] font-bold ${i === step ? "animate-pulse" : ""}`}
+              style={i < step ? { background: C.maroon, color: "#fff" } : { border: `2px solid ${i === step ? C.maroon : C.line}` }}
             >
               {i < step ? "✓" : ""}
             </span>
-            <span className={i > step ? "text-muted" : ""}>{s}</span>
+            <span style={i > step ? { color: C.soft } : undefined}>{s}</span>
           </li>
         ))}
       </ol>
-      <p className="mt-6 text-[13px] text-muted">A 1-minute reel takes about 20 seconds.</p>
+      <p className="mt-6 text-[13px]" style={{ color: C.soft }}>A 1-minute reel takes about 20 seconds.</p>
     </div>
-  );
-}
-
-function SectionHead({ kicker, title, sub }: { kicker: string; title: string; sub?: string }) {
-  return (
-    <div className="max-w-2xl">
-      <div className="font-mono text-[12px] uppercase tracking-[0.12em] text-muted">{kicker}</div>
-      <h2 className="headline mt-3 text-[34px] leading-[1.08] font-semibold tracking-[-0.035em] sm:text-[44px]">{title}</h2>
-      {sub && <p className="mt-4 text-[17px] leading-relaxed text-muted">{sub}</p>}
-    </div>
-  );
-}
-
-const FEATURES = [
-  { k: "01", title: "Spelled like you text", body: "“yaar kya scene hai”, not “Your car seen hey”. Every word is written the casual way creators actually type it." },
-  { k: "02", title: "Timed word by word", body: "Each word pops in as it's said. Fix a word and its timing stays put." },
-  { k: "03", title: "Built on Sarvam", body: "India's own speech models hear Indian accents, code-switching and regional languages properly." },
-  { k: "04", title: "Every look, fully yours", body: "7 presets, 28 trending fonts plus your own uploads, Indian-script faces built in. Change the colours, highlight, outline, shadow, background, animation and layout of any of them." },
-  { k: "05", title: "Rendered on your device", body: "Export runs in your browser, so your video never leaves it. MP4, transparent WebM for Premiere, DaVinci and Final Cut, green screen and SRT." },
-  { k: "06", title: "Open source", body: "AGPL-3.0. Read the code, run it on your own machine for free, change anything." },
-];
-
-function Features() {
-  return (
-    <section id="features" className="border-t border-hairline">
-      <div className="mx-auto max-w-6xl px-5 py-24">
-        <SectionHead kicker="Features" title="A full caption studio. Open source." />
-        <div className="mt-12 grid overflow-hidden rounded-2xl border border-hairline sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div key={f.k} className="-mt-px -ml-px border-t border-l border-hairline p-7">
-              <div className="font-mono text-[12px] text-muted">{f.k}</div>
-              <div className="mt-4 text-[17px] font-medium tracking-[-0.01em]">{f.title}</div>
-              <p className="mt-2 text-[14px] leading-relaxed text-muted">{f.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -311,19 +395,19 @@ const COMPARE = [
 
 function Compare() {
   return (
-    <section className="border-t border-hairline">
-      <div className="mx-auto max-w-6xl px-5 py-24">
-        <SectionHead kicker="Accuracy" title="Generic captioners can't spell Hinglish." sub="They write Hindi in Devanagari or force it into English words. Same audio, three ways:" />
-        <div className="mt-12 overflow-hidden rounded-2xl border border-hairline">
-          <div className="hidden grid-cols-3 border-b border-hairline px-6 py-3 font-mono text-[12px] uppercase tracking-[0.1em] text-muted sm:grid">
+    <section className="border-t px-4 py-24" style={{ borderColor: C.line }}>
+      <div className="mx-auto max-w-5xl">
+        <Head kicker="Accuracy" title={<>Spelled the way <Em>you&apos;d text it.</Em></>} sub="Generic captioners write Hindi in Devanagari or force it into English words. Same audio, three ways:" />
+        <div className="mt-12 overflow-hidden rounded-[24px] border" style={{ background: C.card, borderColor: C.line }}>
+          <div className="hidden grid-cols-3 border-b px-6 py-3 text-[12px] font-medium uppercase tracking-[0.1em] sm:grid" style={{ borderColor: C.line, color: C.soft }}>
             <span>Said</span>
             <span>Generic auto-captions</span>
-            <span className="text-foreground">lafz</span>
+            <span style={{ color: C.maroon }}>lafz</span>
           </div>
           {COMPARE.map((r, i) => (
-            <div key={r.ours} className={`grid gap-1 px-6 py-5 text-[15px] sm:grid-cols-3 sm:gap-4 ${i ? "border-t border-hairline" : ""}`}>
-              <span className="text-muted">{r.heard}</span>
-              <span className="text-muted/70 line-through decoration-white/25">{r.generic}</span>
+            <div key={r.ours} className="grid gap-1 px-6 py-5 text-[16px] sm:grid-cols-3 sm:gap-4" style={i ? { borderTop: `1px solid ${C.line}` } : undefined}>
+              <span style={{ color: C.soft }}>{r.heard}</span>
+              <span className="line-through decoration-black/25" style={{ color: C.soft }}>{r.generic}</span>
               <span className="font-medium">{r.ours}</span>
             </div>
           ))}
@@ -335,19 +419,15 @@ function Compare() {
 
 function Languages() {
   return (
-    <section id="languages" className="border-t border-hairline">
-      <div className="mx-auto max-w-6xl px-5 py-24">
-        <SectionHead
-          kicker="Languages"
-          title="Eleven Indian languages. Your letters or theirs."
-          sub="Every language can be captioned in English letters, the way people text, or in its own script. English words stay in English either way."
-        />
-        <div className="mt-12 grid overflow-hidden rounded-2xl border border-hairline sm:grid-cols-2 lg:grid-cols-4">
+    <section id="languages" className="border-t px-4 py-24" style={{ borderColor: C.line }}>
+      <div className="mx-auto max-w-6xl">
+        <Head kicker="Languages" title={<>Eleven languages. <Em>Your letters or theirs.</Em></>} sub="Every language can be captioned in English letters, the way people text, or in its own script. English words stay in English either way." />
+        <div className="mt-12 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {LANGUAGES.map((l) => (
-            <div key={l.id} className="-mt-px -ml-px border-t border-l border-hairline px-5 py-4">
-              <div className="text-[15px] font-medium">{l.name}</div>
-              <div className="mt-1 text-[13px] text-muted">{l.latinSample}</div>
-              <div className="text-[13px] text-muted">{l.nativeSample}</div>
+            <div key={l.id} className="rounded-2xl border px-5 py-4" style={{ background: C.card, borderColor: C.line }}>
+              <div className="text-[16px] font-medium">{l.name}</div>
+              <div className="mt-1 text-[14px]" style={{ color: C.soft }}>{l.latinSample}</div>
+              <div className="text-[14px]" style={{ color: C.soft }}>{l.nativeSample}</div>
             </div>
           ))}
         </div>
@@ -356,38 +436,48 @@ function Languages() {
   );
 }
 
-const STEPS_LOCAL = [
+const LOCAL = [
   { c: "git clone https://github.com/aditya01k/lafz && cd lafz", note: "Get the code" },
   { c: "pnpm install", note: "Install" },
-  { c: "cp .env.example .env.local", note: "Add your Sarvam and OpenAI keys" },
-  { c: "pnpm dev", note: "Open localhost:3300" },
+  { c: "cp .env.example .env.local", note: "Add your own Sarvam and OpenAI keys" },
+  { c: "pnpm dev", note: "Open localhost:3300. Every feature, no sign-in" },
 ];
 
-function RunLocally() {
+/** The open-source pitch, given its own dark section so it can't be missed. */
+function OpenSource() {
   return (
-    <section id="self-host" className="border-t border-hairline">
-      <div className="mx-auto grid max-w-6xl gap-12 px-5 py-24 lg:grid-cols-[1fr_1.15fr] lg:items-center">
+    <section id="open-source" className="mx-4 my-8 rounded-[32px] px-6 py-20 sm:px-12" style={{ background: C.ink, color: "#f6efe7" }}>
+      <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
         <div>
-          <SectionHead
-            kicker="Self-host"
-            title="Free forever on your own machine."
-            sub="Every feature, no account, no limits. You only pay Sarvam and OpenAI for your own usage, roughly ₹1 a minute of video."
-          />
-          <a
-            href={GITHUB}
-            className="mt-8 inline-flex h-10 items-center gap-2 rounded-full border border-hairline px-4 text-[14px] font-medium transition hover:border-white/25"
-          >
-            <GitHubIcon className="size-4" /> View source on GitHub
-          </a>
+          <span className="rounded-md bg-white/10 px-2.5 py-1 text-[12px] font-medium">Open source · AGPL-3.0</span>
+          <div className="mt-8 text-[96px] leading-none font-light tracking-[-0.06em] sm:text-[140px]">₹0</div>
+          <h2 className="mt-4 text-[34px] leading-[1.1] tracking-[-0.03em] sm:text-[44px]">
+            Free forever. <Em>On your own machine.</Em>
+          </h2>
+          <p className="mt-5 max-w-md text-[17px] leading-relaxed opacity-65">
+            Every feature, every language, every style. No account, no limits, no watermark. You only pay Sarvam and OpenAI
+            for your own usage, about ₹1 a minute of video.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a href={GITHUB} className="flex h-12 items-center gap-2 rounded-xl bg-white px-5 text-[15px] font-medium text-black">
+              <GitHubIcon className="size-4" /> Star on GitHub
+            </a>
+            <Command text={CLONE} dark />
+          </div>
         </div>
-        <div className="overflow-hidden rounded-2xl border border-hairline bg-surface">
-          <div className="flex h-10 items-center border-b border-hairline px-4 font-mono text-[12px] text-muted">Terminal</div>
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+          <div className="flex h-10 items-center gap-1.5 border-b border-white/10 px-4">
+            <span className="size-2.5 rounded-full bg-white/20" />
+            <span className="size-2.5 rounded-full bg-white/20" />
+            <span className="size-2.5 rounded-full bg-white/20" />
+            <span className="ml-3 font-mono text-[12px] opacity-50">Terminal</span>
+          </div>
           <div className="space-y-4 p-6 font-mono text-[13px] leading-relaxed">
-            {STEPS_LOCAL.map((s) => (
+            {LOCAL.map((s) => (
               <div key={s.c}>
-                <div className="text-muted/60"># {s.note}</div>
+                <div className="opacity-40"># {s.note}</div>
                 <div className="break-all">
-                  <span className="text-muted/60">$ </span>
+                  <span className="opacity-40">$ </span>
                   {s.c}
                 </div>
               </div>
@@ -407,44 +497,44 @@ const PACKS = [
 
 function Pricing({ onStart }: { onStart: () => void }) {
   return (
-    <section id="pricing" className="border-t border-hairline">
-      <div className="mx-auto max-w-6xl px-5 py-24">
-        <SectionHead kicker="Pricing" title="Run it free, or pay only for what you caption." />
-        <div className="mt-12 grid overflow-hidden rounded-2xl border border-hairline lg:grid-cols-2">
-          <div className="p-8">
-            <div className="font-mono text-[12px] uppercase tracking-[0.12em] text-muted">Self-hosted</div>
-            <div className="mt-4 text-[44px] font-semibold tracking-[-0.04em]">₹0</div>
-            <p className="mt-1 text-[14px] text-muted">Open source, forever</p>
-            <ul className="mt-6 space-y-2.5 text-[14px]">
-              {["Every feature and style", "Every language", "Unlimited videos", "Bring your own API keys"].map((x) => (
+    <section id="pricing" className="px-4 py-24">
+      <div className="mx-auto max-w-5xl">
+        <Head kicker="Pricing" title={<>Run it free, or <Em>pay per minute.</Em></>} />
+        <div className="mt-12 grid gap-4 lg:grid-cols-2">
+          <div className="rounded-[24px] border p-8" style={{ background: C.card, borderColor: C.line }}>
+            <div className="text-[13px] font-medium uppercase tracking-[0.12em]" style={{ color: C.soft }}>Self-hosted</div>
+            <div className="mt-4 text-[56px] leading-none font-light tracking-[-0.05em]">₹0</div>
+            <p className="mt-2 text-[14px]" style={{ color: C.soft }}>Open source, forever</p>
+            <ul className="mt-6 space-y-2.5 text-[15px]">
+              {["Every feature and style", "All 11 languages", "Unlimited videos, no watermark", "Bring your own API keys"].map((x) => (
                 <Check key={x}>{x}</Check>
               ))}
             </ul>
-            <a href="#self-host" className="mt-8 inline-flex h-10 items-center rounded-full border border-hairline px-5 text-[14px] font-medium hover:border-white/25">
-              Run it locally
+            <a href="#open-source" className="mt-8 inline-flex h-11 items-center gap-2 rounded-xl border px-5 text-[14px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
+              <GitHubIcon className="size-4" /> Run it locally
             </a>
           </div>
-          <div className="border-t border-hairline bg-white/[0.025] p-8 lg:border-t-0 lg:border-l">
-            <div className="font-mono text-[12px] uppercase tracking-[0.12em] text-muted">Hosted</div>
+          <div className="rounded-[24px] p-8" style={{ background: C.maroon, color: "#f6efe7" }}>
+            <div className="text-[13px] font-medium uppercase tracking-[0.12em] opacity-60">Hosted</div>
             <div className="mt-4 flex items-baseline gap-2">
-              <span className="text-[44px] font-semibold tracking-[-0.04em]">₹2</span>
-              <span className="text-muted">per minute of video</span>
+              <span className="text-[56px] leading-none font-light tracking-[-0.05em]">₹2</span>
+              <span className="opacity-60">per minute of video</span>
             </div>
-            <p className="mt-1 text-[14px] text-muted">Prepaid credits. No subscription, credits never expire.</p>
+            <p className="mt-2 text-[14px] opacity-60">Prepaid credits. No subscription, never expire.</p>
             <div className="mt-6 grid grid-cols-3 gap-2">
               {PACKS.map((p) => (
-                <div key={p.inr} className="rounded-xl border border-hairline bg-black p-3 text-center">
-                  <div className="text-[17px] font-semibold">₹{p.inr.toLocaleString("en-IN")}</div>
-                  <div className="font-mono text-[12px] text-muted">{p.mins} min</div>
+                <div key={p.inr} className="rounded-xl bg-white/10 p-3 text-center">
+                  <div className="text-[17px] font-medium">₹{p.inr.toLocaleString("en-IN")}</div>
+                  <div className="text-[12px] opacity-60">{p.mins} min</div>
                 </div>
               ))}
             </div>
-            <ul className="mt-6 space-y-2.5 text-[14px]">
-              {["Nothing to install", "Unlimited exports and edits", "Charged only for transcription"].map((x) => (
+            <ul className="mt-6 space-y-2.5 text-[15px]">
+              {["Nothing to install", "Unlimited edits and exports", "Charged only for transcription"].map((x) => (
                 <Check key={x}>{x}</Check>
               ))}
             </ul>
-            <button onClick={onStart} className="mt-8 h-10 rounded-full bg-white px-5 text-[14px] font-medium text-black hover:bg-white/85">
+            <button onClick={onStart} className="mt-8 h-11 rounded-xl bg-white px-5 text-[14px] font-medium text-black">
               Caption a reel
             </button>
           </div>
@@ -457,7 +547,7 @@ function Pricing({ onStart }: { onStart: () => void }) {
 function Check({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-center gap-2.5">
-      <svg viewBox="0 0 16 16" className="size-4 text-muted" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg viewBox="0 0 16 16" className="size-4 opacity-60" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 8.5l3 3 7-7" />
       </svg>
       {children}

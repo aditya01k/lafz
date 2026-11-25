@@ -10,6 +10,8 @@ import { FONT_FAMILIES } from "@/lib/fonts";
 // The interface.
 export const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 export const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
+// The landing page's editorial accent.
+export const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-instrument" });
 
 // Caption faces, drawn on canvas. Not preloaded: each loads the first time a caption uses it.
 // next/font needs every loader called on its own top-level const, with literal options.
@@ -70,4 +72,4 @@ for (const [id, f] of Object.entries(bundled)) FONT_FAMILIES[id] = f.style.fontF
 FONT_FAMILIES.sfpro = `"SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, ${f_interTight.style.fontFamily}`;
 FONT_FAMILIES.timesNewRoman = `"Times New Roman", Times, ${f_tinos.style.fontFamily}`;
 
-export const fontVariables = [geist, geistMono].map((f) => f.variable).join(" ");
+export const fontVariables = [geist, geistMono, serif].map((f) => f.variable).join(" ");
