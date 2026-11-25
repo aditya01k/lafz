@@ -69,7 +69,7 @@ export default function Upload({ onFile, error, working }: { onFile: OnFile; err
 
         <section id="styles" className="border-t border-hairline">
           <div className="mx-auto max-w-6xl px-5 py-24">
-            <SectionHead kicker="Styles" title="Type a line. See it in all ten." sub="Every preview is drawn by the same renderer that exports your video." />
+            <SectionHead kicker="Styles" title="Type a line. See it in every style." sub="Every preview is drawn by the same renderer that exports your video." />
             <div className="mt-12">
               <Playground />
             </div>
@@ -279,7 +279,7 @@ const FEATURES = [
   { k: "01", title: "Spelled like you text", body: "“yaar kya scene hai”, not “Your car seen hey”. Every word is written the casual way creators actually type it." },
   { k: "02", title: "Timed word by word", body: "Each word pops in as it's said. Fix a word and its timing stays put." },
   { k: "03", title: "Built on Sarvam", body: "India's own speech models hear Indian accents, code-switching and regional languages properly." },
-  { k: "04", title: "Every look, fully yours", body: "12 presets, 24 current fonts, Indian-script faces built in. Change the colours, highlight, outline, shadow, background, animation and layout of any of them." },
+  { k: "04", title: "Every look, fully yours", body: "7 presets, 28 trending fonts plus your own uploads, Indian-script faces built in. Change the colours, highlight, outline, shadow, background, animation and layout of any of them." },
   { k: "05", title: "Rendered on your device", body: "Export runs in your browser, so your video never leaves it. MP4, transparent WebM for Premiere, DaVinci and Final Cut, green screen and SRT." },
   { k: "06", title: "Open source", body: "AGPL-3.0. Read the code, run it on your own machine for free, change anything." },
 ];

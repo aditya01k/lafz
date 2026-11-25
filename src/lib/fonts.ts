@@ -1,55 +1,66 @@
 /**
- * Caption fonts: current Google Fonts creators use, grouped for the picker. Each Indian
- * script gets a matching face (the Baloo family, Nastaliq for Urdu) that the renderer
- * falls back to automatically, so a Latin display font still draws Tamil or Hindi well.
- *
- * `FONT_FAMILIES` holds the CSS family names next/font generated; src/app/fonts.ts
- * fills it in at startup.
+ * Caption fonts. Three kinds:
+ *   google: bundled through next/font (src/app/fonts.ts fills in their family names)
+ *   system: SF Pro and Times New Roman, which can't be bundled; used where the device has them,
+ *           with a close free face as the fallback (Tinos is Times New Roman's metric twin)
+ *   custom: fonts a creator uploads (e.g. Editor's Note, Aston Script), kept in their browser
+ * Each Indian script also gets a matching face (the Baloo family, Nastaliq for Urdu) that the
+ * renderer falls back to automatically.
  */
-export type FontId =
-  | "montserrat" | "anton" | "bebas" | "poppins" | "inter" | "geist"
-  | "bricolage" | "jakarta" | "unbounded" | "syne" | "sora" | "outfit" | "spaceGrotesk" | "archivoBlack"
-  | "oswald" | "luckiest" | "bangers" | "lilita" | "titan" | "rubik"
-  | "instrumentSerif" | "dmSerif" | "permanentMarker" | "caveat";
+export type FontId = string;
 
 export type ScriptFontId =
   | "devanagari" | "tamil" | "telugu" | "kannada" | "malayalam"
   | "bengali" | "gujarati" | "gurmukhi" | "odia" | "urdu";
 
-export type FontMeta = { id: FontId; name: string; group: string; weights: number[]; italic?: boolean };
+export type FontMeta = { id: FontId; name: string; group: string; weights: number[]; italic?: boolean; kind?: "system" | "custom" };
 
 export const FONTS: FontMeta[] = [
-  { id: "montserrat", name: "Montserrat", group: "Bold sans", weights: [700, 800, 900] },
-  { id: "bricolage", name: "Bricolage Grotesque", group: "Bold sans", weights: [600, 700, 800] },
-  { id: "jakarta", name: "Plus Jakarta Sans", group: "Bold sans", weights: [600, 700, 800] },
-  { id: "poppins", name: "Poppins", group: "Bold sans", weights: [600, 700, 800, 900] },
-  { id: "outfit", name: "Outfit", group: "Bold sans", weights: [600, 700, 800, 900] },
-  { id: "sora", name: "Sora", group: "Bold sans", weights: [600, 700, 800] },
-  { id: "rubik", name: "Rubik", group: "Bold sans", weights: [600, 700, 800, 900] },
-  { id: "archivoBlack", name: "Archivo Black", group: "Bold sans", weights: [400] },
-  { id: "inter", name: "Inter", group: "Clean", weights: [500, 600, 700, 800] },
-  { id: "geist", name: "Geist", group: "Clean", weights: [500, 600, 700, 800] },
-  { id: "spaceGrotesk", name: "Space Grotesk", group: "Clean", weights: [500, 600, 700] },
-  { id: "anton", name: "Anton", group: "Condensed", weights: [400] },
-  { id: "bebas", name: "Bebas Neue", group: "Condensed", weights: [400] },
-  { id: "oswald", name: "Big Shoulders Display", group: "Condensed", weights: [700, 800, 900] },
-  { id: "unbounded", name: "Unbounded", group: "Wide", weights: [600, 700, 800, 900] },
-  { id: "syne", name: "Syne", group: "Wide", weights: [600, 700, 800] },
-  { id: "luckiest", name: "Luckiest Guy", group: "Fun", weights: [400] },
-  { id: "bangers", name: "Bangers", group: "Fun", weights: [400] },
-  { id: "lilita", name: "Lilita One", group: "Fun", weights: [400] },
-  { id: "titan", name: "Titan One", group: "Fun", weights: [400] },
-  { id: "instrumentSerif", name: "Instrument Serif", group: "Serif & hand", weights: [400], italic: true },
-  { id: "dmSerif", name: "DM Serif Display", group: "Serif & hand", weights: [400], italic: true },
-  { id: "permanentMarker", name: "Permanent Marker", group: "Serif & hand", weights: [400] },
-  { id: "caveat", name: "Caveat", group: "Serif & hand", weights: [600, 700] },
+  // The creator's own picks first.
+  { id: "sfpro", name: "SF Pro", group: "Favourites", weights: [500, 600, 700, 800, 900], italic: true, kind: "system" },
+  { id: "anton", name: "Anton", group: "Favourites", weights: [400] },
+  { id: "timesNewRoman", name: "Times New Roman", group: "Favourites", weights: [400, 700], italic: true, kind: "system" },
+  { id: "instrumentSerif", name: "Instrument Serif", group: "Favourites", weights: [400], italic: true },
+  { id: "greatVibes", name: "Great Vibes", group: "Favourites", weights: [400] },
+
+  { id: "playfair", name: "Playfair Display", group: "Serif", weights: [500, 600, 700, 800, 900], italic: true },
+  { id: "fraunces", name: "Fraunces", group: "Serif", weights: [400, 500, 600], italic: true },
+  { id: "cormorant", name: "Cormorant Garamond", group: "Serif", weights: [500, 600, 700], italic: true },
+  { id: "bodoni", name: "Bodoni Moda", group: "Serif", weights: [500, 600, 700, 800, 900], italic: true },
+  { id: "gloock", name: "Gloock", group: "Serif", weights: [400] },
+  { id: "dmSerif", name: "DM Serif Display", group: "Serif", weights: [400], italic: true },
+
+  { id: "allura", name: "Allura", group: "Script", weights: [400] },
+  { id: "alexBrush", name: "Alex Brush", group: "Script", weights: [400] },
+  { id: "pinyon", name: "Pinyon Script", group: "Script", weights: [400] },
+  { id: "caveat", name: "Caveat", group: "Script", weights: [600, 700] },
+  { id: "permanentMarker", name: "Permanent Marker", group: "Script", weights: [400] },
+
+  { id: "interTight", name: "Inter Tight", group: "Sans", weights: [500, 600] },
+  { id: "schibsted", name: "Schibsted Grotesk", group: "Sans", weights: [600, 700, 800, 900], italic: true },
+  { id: "montserrat", name: "Montserrat", group: "Sans", weights: [700, 800, 900] },
+  { id: "bricolage", name: "Bricolage Grotesque", group: "Sans", weights: [600, 700, 800] },
+  { id: "jakarta", name: "Plus Jakarta Sans", group: "Sans", weights: [600, 700, 800] },
+  { id: "poppins", name: "Poppins", group: "Sans", weights: [600, 700, 800, 900] },
+  { id: "geist", name: "Geist", group: "Sans", weights: [500, 600, 700, 800] },
+  { id: "spaceGrotesk", name: "Space Grotesk", group: "Sans", weights: [500, 600, 700] },
+
+  { id: "bebas", name: "Bebas Neue", group: "Display", weights: [400] },
+  { id: "oswald", name: "Oswald", group: "Display", weights: [600, 700] },
+  { id: "unbounded", name: "Unbounded", group: "Display", weights: [600, 700, 800, 900] },
+  { id: "luckiest", name: "Luckiest Guy", group: "Display", weights: [400] },
 ];
 
 export const fontMeta = (id: FontId) => FONTS.find((f) => f.id === id) ?? FONTS[0];
 
-export const FONT_FAMILIES: Record<FontId | ScriptFontId, string> = Object.fromEntries(
-  [...FONTS.map((f) => [f.id, `'${f.name}', sans-serif`]), ...(["devanagari", "tamil", "telugu", "kannada", "malayalam", "bengali", "gujarati", "gurmukhi", "odia", "urdu"] as const).map((s) => [s, "sans-serif"])],
-) as Record<FontId | ScriptFontId, string>;
+const SCRIPT_FONTS: ScriptFontId[] = ["devanagari", "tamil", "telugu", "kannada", "malayalam", "bengali", "gujarati", "gurmukhi", "odia", "urdu"];
+
+export const FONT_FAMILIES: Record<string, string> = Object.fromEntries([
+  ...FONTS.map((f) => [f.id, `'${f.name}', sans-serif`]),
+  ...SCRIPT_FONTS.map((s) => [s, "sans-serif"]),
+]);
+FONT_FAMILIES.sfpro = `"SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
+FONT_FAMILIES.timesNewRoman = `"Times New Roman", Times, serif`;
 
 // Unicode blocks → the script font that draws them.
 const SCRIPT_RANGES: [RegExp, ScriptFontId][] = [
@@ -73,7 +84,7 @@ export const isRtl = (text: string) => /[؀-ۿݐ-ݿ]/.test(text);
 
 /** CSS font-family list: the chosen face first, then the script faces this text needs. */
 export function fontStack(font: FontId, text: string): string {
-  return [FONT_FAMILIES[font], ...scriptsIn(text).map((s) => FONT_FAMILIES[s])].join(", ");
+  return [FONT_FAMILIES[font] ?? FONT_FAMILIES.sfpro, ...scriptsIn(text).map((s) => FONT_FAMILIES[s])].join(", ");
 }
 
 const loaded = new Map<string, Promise<unknown>>();
@@ -87,10 +98,67 @@ export function ensureFont(font: FontId, weight: number, text: string, italic = 
   if (!p) {
     const style = italic ? "italic " : "";
     p = Promise.all([
-      document.fonts.load(`${style}${weight} 40px ${FONT_FAMILIES[font]}`, "Aa"),
+      document.fonts.load(`${style}${weight} 40px ${FONT_FAMILIES[font] ?? "sans-serif"}`, "Aa"),
       ...scripts.map((s) => document.fonts.load(`${Math.min(800, Math.max(400, weight))} 40px ${FONT_FAMILIES[s]}`, text)),
     ]).catch(() => []);
     loaded.set(key, p);
   }
   return p;
 }
+
+// ---- Fonts the creator uploads (kept in this browser's IndexedDB) ----
+
+const DB = "lafz-fonts";
+
+function idb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("fonts", { keyPath: "name" });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function addFace(name: string, data: ArrayBuffer) {
+  const family = `lafz-custom-${name.replace(/[^a-z0-9]+/gi, "-")}`;
+  const face = new FontFace(family, data);
+  await face.load();
+  document.fonts.add(face);
+  const id = `custom:${name}`;
+  FONT_FAMILIES[id] = `'${family}'`;
+  if (!FONTS.some((f) => f.id === id)) FONTS.unshift({ id, name, group: "Your fonts", weights: [400], kind: "custom" });
+  return id;
+}
+
+/** Adds an uploaded .ttf/.otf/.woff/.woff2 and remembers it for next time. Returns its font id. */
+export async function uploadFont(file: File): Promise<FontId> {
+  const name = file.name.replace(/\.(ttf|otf|woff2?)$/i, "").replace(/[-_]+/g, " ").trim() || "My font";
+  const data = await file.arrayBuffer();
+  const id = await addFace(name, data);
+  try {
+    const db = await idb();
+    db.transaction("fonts", "readwrite").objectStore("fonts").put({ name, data });
+  } catch {
+    // Not saved for next time (private mode); it still works in this session.
+  }
+  return id;
+}
+
+let restored: Promise<void> | null = null;
+
+/** Re-registers fonts uploaded in earlier sessions. Safe to call many times. */
+export function restoreCustomFonts(): Promise<void> {
+  if (typeof indexedDB === "undefined") return Promise.resolve();
+  return (restored ??= (async () => {
+    try {
+      const db = await idb();
+      const all = await new Promise<{ name: string; data: ArrayBuffer }[]>((resolve, reject) => {
+        const req = db.transaction("fonts").objectStore("fonts").getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      for (const f of all) await addFace(f.name, f.data).catch(() => {});
+    } catch {}
+  })());
+}
+

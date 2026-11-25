@@ -1,6 +1,6 @@
 # Lafz
 
-Open-source captions for every Indian language. Hinglish, Tanglish and 10 more, spelled the way creators actually type ("yaar kya scene hai", not "Your car seen hey"), timed word by word, in 10 creator styles.
+Open-source captions for 11 Indian languages, in English letters ("yaar kya scene hai", not "Your car seen hey") or their own script, timed word by word, in fully customisable styles.
 
 **Free to run on your own machine.** Every feature, no account, no limits: you pay Sarvam and OpenAI directly for your own usage (about ₹1 per minute of video). Don't want to run it? The hosted version is pay per minute with prepaid credits.
 
@@ -10,7 +10,7 @@ Open-source captions for every Indian language. Hinglish, Tanglish and 10 more, 
 - **Languages**: Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, Urdu and Odia, each in English letters ("kya scene hai") or its own script ("क्या सीन है"), with English words kept in English.
 - **Transcribe**: Whisper (`whisper-1`) supplies per-word timing. If `SARVAM_API_KEY` is set, Sarvam `saaras:v4` supplies the text (`translit` for Roman script, `codemix` for native script with English left in English), mapped onto Whisper's timing. Then a GPT pass fixes spellings word for word, applies the creator's dictionary and suggests emojis.
 - **Edit**: tap any word to rewrite, highlight, delete, split it with a space, start a new line, add a word after it, or nudge its line ±0.1 s. Find and replace, undo/redo (⌘Z / ⇧⌘Z), space to play.
-- **Style**: 10 templates (Pop, Punch, Karaoke, Bubble, Classic, Minimal, Bazaar, Neon, Typewriter, Headline), with size, position, words per line, ALL CAPS, emojis and colours.
+- **Style**: 7 presets (Headline, Typewriter, Editorial, Marker, Clean, Script, Times) as starting points; every setting is editable: font (28 trending Google Fonts, SF Pro and Times New Roman from the device, or upload your own), weight, size, spacing, case, colours, highlight, outline, shadow, background, animation and layout. Indian scripts get matching Baloo faces automatically; Urdu runs right to left.
 - **Export**, all in the browser through WebCodecs ([Mediabunny](https://mediabunny.dev)): burned-in MP4 with the original audio, transparent WebM (VP9 alpha) for Premiere/DaVinci/Final Cut, green-screen MP4, SRT, VTT and a plain transcript.
 
 Rendering happens on the user's device, so the only per-video cost is transcription (about ₹0.50 a minute with Sarvam, plus Whisper and the spelling pass).

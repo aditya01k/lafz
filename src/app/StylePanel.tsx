@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FONTS, fontMeta, type FontId } from "@/lib/fonts";
+import { FONTS, FONT_FAMILIES, fontMeta, restoreCustomFonts, uploadFont, type FontId } from "@/lib/fonts";
 import { TEMPLATES, defaultStyle, templateById, type Style } from "@/lib/templates";
 import { StyleLoop } from "./demo";
-import { captionFamily } from "./fonts";
 
 const MINE_KEY = "lafz:my-styles";
 const SWATCHES = ["#ffffff", "#000000", "#ffe600", "#ffc531", "#ff5a36", "#ff4fd8", "#2ee6ff", "#3cff7a", "#7c5cff"];
@@ -181,11 +180,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function FontPicker({ value, onChange }: { value: FontId; onChange: (f: FontId) => void }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  // Bumped when uploaded fonts are added, so the list re-reads FONTS.
+  const [version, setVersion] = useState(0);
+  const [uploadError, setUploadError] = useState("");
   const box = useRef<HTMLDivElement>(null);
+  const file = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    void restoreCustomFonts().then(() => setVersion((v) => v + 1));
+  }, []);
   const groups = useMemo(() => {
+    void version;
     const list = FONTS.filter((f) => f.name.toLowerCase().includes(q.toLowerCase()));
     return [...new Set(list.map((f) => f.group))].map((g) => [g, list.filter((f) => f.group === g)] as const);
-  }, [q]);
+  }, [q, version]);
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
@@ -198,7 +205,7 @@ function FontPicker({ value, onChange }: { value: FontId; onChange: (f: FontId) 
         onClick={() => setOpen((o) => !o)}
         className="flex h-11 w-full items-center justify-between rounded-xl border border-hairline bg-black px-3.5 hover:border-white/25"
       >
-        <span style={{ fontFamily: captionFamily(value) }} className="text-[17px]">
+        <span style={{ fontFamily: FONT_FAMILIES[value] }} className="text-[17px]">
           {fontMeta(value).name}
         </span>
         <span className="text-[12px] text-muted">Change</span>
@@ -224,7 +231,7 @@ function FontPicker({ value, onChange }: { value: FontId; onChange: (f: FontId) 
                   }}
                   className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left hover:bg-white/5 ${f.id === value ? "bg-white/10" : ""}`}
                 >
-                  <span style={{ fontFamily: captionFamily(f.id), fontWeight: f.weights.at(-1) }} className="text-[18px]">
+                  <span style={{ fontFamily: FONT_FAMILIES[f.id], fontWeight: f.weights.at(-1) }} className="text-[18px]">
                     {f.name}
                   </span>
                   <span className="text-[11px] text-muted">{f.weights.length > 1 ? `${f.weights.length} weights` : ""}</span>
@@ -232,9 +239,38 @@ function FontPicker({ value, onChange }: { value: FontId; onChange: (f: FontId) 
               ))}
             </div>
           ))}
-          <p className="px-2 pt-2 text-[11px] leading-relaxed text-muted">
-            Hindi, Tamil, Telugu and other scripts use a matching Baloo face automatically (Nastaliq for Urdu).
-          </p>
+          <div className="border-t border-hairline px-2 pt-3 pb-1">
+            <button
+              onClick={() => file.current?.click()}
+              className="h-9 w-full rounded-lg border border-dashed border-white/20 text-[13px] hover:border-white/40"
+            >
+              Upload your own font
+            </button>
+            <input
+              ref={file}
+              type="file"
+              accept=".ttf,.otf,.woff,.woff2"
+              className="hidden"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                setUploadError("");
+                try {
+                  const id = await uploadFont(f);
+                  setVersion((v) => v + 1);
+                  onChange(id);
+                  setOpen(false);
+                } catch {
+                  setUploadError("That file isn't a font this browser can read. Try .ttf, .otf or .woff2.");
+                }
+              }}
+            />
+            {uploadError && <p className="mt-2 text-[12px] text-red-300">{uploadError}</p>}
+            <p className="mt-2 text-[11px] leading-relaxed text-muted">
+              For fonts you own, like Editor&apos;s Note or Aston Script. They stay in this browser. SF Pro and Times New Roman
+              use your device&apos;s own copy. Hindi, Tamil and other scripts get a matching Baloo face automatically.
+            </p>
+          </div>
         </div>
       )}
     </div>

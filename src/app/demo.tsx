@@ -24,11 +24,11 @@ export function speak(text: string, at = 0): Word[] {
 type Scene = { lang: string; text: string; template: TemplateId; colors: [string, string, string] };
 
 const SCENES: Scene[] = [
-  { lang: "Hindi · English letters", text: "bhai yeh jagah ekdum mast hai", template: "punch", colors: ["#ff7a45", "#7a1f5c", "#1b0f2e"] },
-  { lang: "Hindi · Hindi script", text: "आज हम गोवा जा रहे हैं", template: "karaoke", colors: ["#1fb5a8", "#164a7a", "#0b1426"] },
-  { lang: "Tamil · English letters", text: "machi idhu semma place da", template: "bubble", colors: ["#ffb347", "#c2410c", "#2a0f06"] },
-  { lang: "Punjabi · English letters", text: "oye chak de phatte yaar", template: "beast", colors: ["#9b5cff", "#2d1b69", "#0d0820"] },
-  { lang: "Bengali · English letters", text: "ki darun jayga re", template: "neon", colors: ["#2563eb", "#0f1f4d", "#05070f"] },
+  { lang: "Hindi · English letters", text: "bhai yeh jagah ekdum mast hai", template: "clean", colors: ["#ff7a45", "#7a1f5c", "#1b0f2e"] },
+  { lang: "Hindi · Hindi script", text: "आज हम गोवा जा रहे हैं", template: "editorial", colors: ["#1fb5a8", "#164a7a", "#0b1426"] },
+  { lang: "Tamil · English letters", text: "machi idhu semma place da", template: "typewriter", colors: ["#ffb347", "#c2410c", "#2a0f06"] },
+  { lang: "Punjabi · English letters", text: "oye chak de phatte yaar", template: "marker", colors: ["#9b5cff", "#2d1b69", "#0d0820"] },
+  { lang: "Bengali · English letters", text: "ki darun jayga re", template: "script", colors: ["#2563eb", "#0f1f4d", "#05070f"] },
   { lang: "Marathi · English letters", text: "lai bhari", template: "headline", colors: ["#22c55e", "#14532d", "#04130a"] },
 ];
 
@@ -124,11 +124,11 @@ export function Playground() {
   const data = useRef<{ lines: Line[]; length: number }[]>([]);
 
   useEffect(() => {
-    const words = speak(text || "kuch toh likho", 0.25);
+    const words = speak(text || "kuch toh likho", 0.05);
     data.current = TEMPLATES.map((tpl) => {
       const b = lineBudget(tpl.style);
       void loadFonts(tpl.style, text);
-      return { lines: buildLines(words, b.maxWords, b.maxChars), length: words.at(-1)!.end + 0.9 };
+      return { lines: buildLines(words, b.maxWords, b.maxChars), length: words.at(-1)!.end + 0.3 };
     });
   }, [text]);
 
@@ -138,7 +138,7 @@ export function Playground() {
     const start = performance.now();
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
-      if (now - last < 33) return; // 30 fps is plenty for ten small previews
+      if (now - last < 33) return; // 30 fps is plenty for the small previews
       last = now;
       TEMPLATES.forEach((tpl, i) => {
         const c = refs.current[i];
@@ -190,10 +190,10 @@ export function Playground() {
 export function StyleLoop({ style, text, className }: { style: Style; text: string; className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const words = speak(text, 0.2);
+    const words = speak(text, 0.05);
     const b = lineBudget(style);
     const lines = buildLines(words, b.maxWords, b.maxChars);
-    const length = words.at(-1)!.end + 0.8;
+    const length = words.at(-1)!.end + 0.3;
     const s = { ...style, y: 0.55, size: style.size * 1.6 };
     const colors = SCENES[Math.max(0, TEMPLATES.findIndex((x) => x.id === style.preset)) % SCENES.length].colors;
     void loadFonts(style, text);

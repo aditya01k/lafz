@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { extractWav } from "@/lib/audio";
+import { restoreCustomFonts } from "@/lib/fonts";
 import { minutesLabel } from "@/lib/pricing";
 import { defaultStyle, normalizeStyle, type Style } from "@/lib/templates";
 import type { TranscribeResult, Word } from "@/lib/types";
@@ -38,6 +39,8 @@ export default function Studio() {
     const url = URL.createObjectURL(file);
     // Same file again (after a refresh): reopen the saved edit, no second transcription.
     const saved = readSaved(key);
+    // A saved style may use a font uploaded in an earlier session.
+    await restoreCustomFonts();
     if (saved) {
       setPhase({ kind: "edit", project: { file, url, key, ...saved } });
       return;

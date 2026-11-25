@@ -5,14 +5,17 @@ import type { Language, Script } from "@/lib/languages";
 import type { TimedWord } from "./whisper";
 
 let client: OpenAI | undefined;
-const MODEL = process.env.OPENAI_MODEL ?? "gpt-5.5";
+// gpt-5-mini at minimal effort: a spelling pass doesn't need thinking, and output tokens are
+// most of this step's cost (about ₹0.3 a minute of video, against ₹5+ on gpt-5.5).
+const MODEL = process.env.OPENAI_MODEL ?? "gpt-5-mini";
+const EFFORT = (process.env.OPENAI_EFFORT ?? "minimal") as "minimal" | "low" | "medium";
 const BATCH = 250;
 
 const Out = z.object({
   words: z.array(
     z.object({
       text: z.string().describe("The cleaned word, or \"\" to drop a duplicate or noise token."),
-      emoji: z.string().describe("One emoji that fits this word, or \"\". Use sparingly: about one per sentence."),
+      emoji: z.string().describe("Almost always \"\". Only for the single most visual word in a sentence: one fitting emoji."),
     }),
   ),
 });
@@ -57,7 +60,19 @@ export async function cleanSpelling(
     const batch = words.slice(i, i + BATCH);
     out.push(...(await cleanBatch(batch, dictionary, language, script)));
   }
-  return out.filter((w) => w.text);
+  return thinEmojis(out.filter((w) => w.text));
+}
+
+/** At most one emoji per 8 words: the model tends to decorate every word. */
+function thinEmojis<T extends { emoji?: string }>(words: T[]): T[] {
+  let since = 8;
+  return words.map((w) => {
+    since++;
+    if (!w.emoji) return w;
+    if (since < 8) return { ...w, emoji: undefined };
+    since = 0;
+    return w;
+  });
 }
 
 async function cleanBatch(batch: TimedWord[], dictionary: string[], language: Language, script: Script) {
@@ -67,11 +82,13 @@ async function cleanBatch(batch: TimedWord[], dictionary: string[], language: La
   try {
     const response = await client!.responses.parse({
       model: MODEL,
-      reasoning: { effort: "low" },
+      reasoning: { effort: EFFORT },
       instructions: promptFor(language, script) + dict,
       input: batch.map((w, i) => `${i + 1}. ${w.text}`).join("\n"),
       text: { format: zodTextFormat(Out, "hinglish_words") },
     });
+    // Cost telemetry: this pass is the biggest per-minute cost after speech recognition.
+    console.log("[spelling] usage", MODEL, batch.length, "words", JSON.stringify(response.usage));
     const parsed = response.output_parsed?.words;
     // A wrong count would shift every timing after the mismatch: keep the raw words instead.
     if (!parsed || parsed.length !== batch.length) return batch;

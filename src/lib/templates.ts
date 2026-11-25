@@ -1,4 +1,5 @@
 import { ensureFont, fontMeta, fontStack, isRtl, type FontId } from "./fonts";
+
 import { lineAt, type Line } from "./lines";
 import type { Word } from "./types";
 
@@ -8,9 +9,7 @@ import type { Word } from "./types";
  * editor can change any field.
  */
 
-export type TemplateId =
-  | "pop" | "punch" | "beast" | "karaoke" | "bubble" | "classic"
-  | "minimal" | "neon" | "typewriter" | "headline" | "serif" | "marker";
+export type TemplateId = "headline" | "typewriter" | "editorial" | "marker" | "clean" | "script" | "times";
 
 export type Style = {
   preset: TemplateId;
@@ -72,61 +71,49 @@ const t = (id: TemplateId, name: string, blurb: string, s: Partial<Style>): Temp
   id, name, blurb, style: { ...BASE, ...s, preset: id },
 });
 
+// The creator's chosen looks: the four they picked, plus one for each of their fonts
+// (SF Pro, Aston-style script, Times New Roman). Editorial and Script use the closest free
+// faces to Editor's Note and Aston Script; uploading those fonts swaps them in.
 export const TEMPLATES: Template[] = [
-  t("pop", "Pop", "One word at a time, big and punchy", {
-    font: "bricolage", weight: 800, size: 0.115, wordsPerLine: 1, highlight: "none", outlineWidth: 0.2, y: 0.62,
-  }),
-  t("punch", "Punch", "Bold caps, the spoken word lights up", {
-    font: "montserrat", weight: 900, size: 0.08, case: "upper", shadow: true, shadowColor: "#00000099",
-  }),
-  t("beast", "Beast", "Chunky cartoon caps in loud colours", {
-    font: "luckiest", weight: 400, size: 0.09, case: "upper", rainbow: true, highlight: "none", outlineWidth: 0.22, wordsPerLine: 3, y: 0.64,
-  }),
-  t("karaoke", "Karaoke", "Words fill with colour as they're said", {
-    font: "poppins", weight: 800, size: 0.06, highlightColor: "#3cff7a", highlightScope: "spoken", wordsPerLine: 6, animation: "none", outlineWidth: 0.14, y: 0.72,
-  }),
-  t("bubble", "Bubble", "Each word in its own pill", {
-    font: "jakarta", weight: 800, size: 0.056, textColor: "#111111", highlight: "box", highlightColor: "#ff5a36",
-    outline: false, background: "word", backgroundColor: "#ffffff", backgroundOpacity: 1, radius: 0.4, wordsPerLine: 4, y: 0.7, animation: "pop",
-  }),
-  t("classic", "Classic", "Clean subtitles on a dark band", {
-    font: "inter", weight: 600, size: 0.045, highlight: "none", outline: false, background: "line", backgroundOpacity: 0.62,
-    radius: 0.18, wordsPerLine: 9, animation: "none", y: 0.82,
-  }),
-  t("minimal", "Minimal", "Soft lowercase, unsaid words dimmed", {
-    font: "geist", weight: 600, size: 0.052, case: "lower", highlight: "none", dim: 0.42, outline: false, shadow: true,
-    shadowColor: "#0000008c", shadowBlur: 0.3, wordsPerLine: 5, animation: "none", y: 0.7,
-  }),
-  t("neon", "Neon", "Glowing wide type", {
-    font: "unbounded", weight: 800, size: 0.07, case: "upper", outline: false, shadow: true, shadowColor: "#2ee6ff", shadowBlur: 0.55,
-    highlightColor: "#ff4fd8", wordsPerLine: 3, y: 0.64,
-  }),
-  t("typewriter", "Typewriter", "Words appear as they're spoken", {
-    font: "spaceGrotesk", weight: 600, size: 0.05, highlight: "none", reveal: true, outline: false, background: "word",
-    backgroundOpacity: 0.78, radius: 0.12, wordsPerLine: 6, animation: "fade", y: 0.74,
-  }),
   t("headline", "Headline", "Two huge words, stacked", {
     font: "anton", weight: 400, size: 0.13, case: "upper", stack: true, wordsPerLine: 2, highlightScope: "current", y: 0.6,
   }),
-  t("serif", "Editorial", "Elegant italic serif, lifestyle feel", {
+  t("typewriter", "Typewriter", "Words appear as they're spoken", {
+    font: "sfpro", weight: 600, size: 0.05, highlight: "none", reveal: true, outline: false, background: "word",
+    backgroundOpacity: 0.78, radius: 0.12, wordsPerLine: 6, animation: "fade", y: 0.74,
+  }),
+  t("editorial", "Editorial", "Elegant italic serif, the Editor's Note look", {
     font: "instrumentSerif", weight: 400, italic: true, size: 0.075, highlight: "none", dim: 0.5, outline: false, shadow: true,
     shadowColor: "#00000080", shadowBlur: 0.35, wordsPerLine: 4, animation: "fade", y: 0.7,
   }),
   t("marker", "Marker", "Hand-drawn, casual vlog energy", {
     font: "permanentMarker", weight: 400, size: 0.072, highlightColor: "#ffe600", outlineWidth: 0.12, wordsPerLine: 3, animation: "bounce", y: 0.68,
   }),
+  t("clean", "Clean", "SF Pro, bold, the spoken word in yellow", {
+    font: "sfpro", weight: 800, size: 0.07, outlineWidth: 0.12, shadow: true, shadowColor: "#00000080", shadowBlur: 0.3,
+    wordsPerLine: 3, animation: "pop", y: 0.68,
+  }),
+  t("script", "Script", "Flowing signature script, the Aston look", {
+    font: "greatVibes", weight: 400, size: 0.1, highlight: "none", outline: false, shadow: true, shadowColor: "#00000099",
+    shadowBlur: 0.3, wordsPerLine: 3, animation: "fade", y: 0.66,
+  }),
+  t("times", "Times", "Times New Roman, classic and editorial", {
+    font: "timesNewRoman", weight: 400, size: 0.068, highlight: "underline", highlightColor: "#ffffff", outline: false,
+    shadow: true, shadowColor: "#00000099", shadowBlur: 0.3, wordsPerLine: 5, animation: "none", y: 0.72,
+  }),
 ];
 
-export const templateById = (id: string) => TEMPLATES.find((x) => x.id === id) ?? TEMPLATES[1];
+export const templateById = (id: string) => TEMPLATES.find((x) => x.id === id) ?? TEMPLATES[0];
 
-export function defaultStyle(id: TemplateId = "punch"): Style {
+export function defaultStyle(id: TemplateId = "headline"): Style {
   return { ...templateById(id).style };
 }
 
 /** Old saved projects stored a smaller style; give them a full one. */
-export function normalizeStyle(s: Partial<Style> & { template?: TemplateId }): Style {
-  if (s.font && s.preset) return { ...defaultStyle(s.preset), ...s };
-  const base = defaultStyle(s.template ?? s.preset ?? "punch");
+export function normalizeStyle(s: Partial<Style> & { template?: string }): Style {
+  // Saved with a full style: keep it (its preset may since have been retired).
+  if (s.font && s.preset) return { ...defaultStyle(templateById(s.preset).id), ...s } as Style;
+  const base = defaultStyle(templateById(s.template ?? s.preset ?? "headline").id);
   return { ...base, ...(typeof s.size === "number" && s.size > 0.3 ? { size: base.size * s.size } : {}), ...(s.y ? { y: s.y } : {}) };
 }
 
