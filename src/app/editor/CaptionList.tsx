@@ -89,7 +89,7 @@ export default function CaptionList({
             value={repl}
             onChange={(e) => setRepl(e.target.value)}
             placeholder="Replace word with"
-            className="min-w-0 flex-1 rounded-lg border border-hairline bg-background px-3 py-2 text-[13px] outline-none focus:border-white/25"
+            className={`min-w-0 flex-1 rounded-lg border border-hairline bg-background px-3 py-2 text-[13px] outline-none focus:border-white/25 ${needle ? "" : "hidden sm:block"}`}
           />
           <button
             disabled={!matches}
@@ -101,7 +101,7 @@ export default function CaptionList({
               setFind("");
               setRepl("");
             }}
-            className="shrink-0 rounded-lg bg-raised px-3 text-[13px] font-medium disabled:opacity-40"
+            className={`shrink-0 rounded-lg bg-raised px-3 text-[13px] font-medium disabled:opacity-40 ${needle || note ? "" : "hidden sm:block"}`}
           >
             {note || (matches ? `Replace ${matches}` : "Replace")}
           </button>

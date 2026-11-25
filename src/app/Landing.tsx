@@ -34,8 +34,10 @@ export default function Landing({ accounts }: { accounts: boolean }) {
       <Nav accounts={accounts} />
       <main>
         <Hero />
-        <Statement />
+        {/* The story in order: it runs on your Mac, it's open source, why that matters, start. */}
         <OnYourMac />
+        <OpenSource />
+        <Statement />
 
         <StartCta accounts={accounts} />
 
@@ -59,7 +61,6 @@ export default function Landing({ accounts }: { accounts: boolean }) {
 
         <Compare />
         <Languages />
-        <OpenSource />
         <Pricing />
       </main>
       <footer className="border-t px-4" style={{ borderColor: C.line }}>
@@ -68,7 +69,7 @@ export default function Landing({ accounts }: { accounts: boolean }) {
             <Logo /> Open source captions, made in India
           </span>
           <span className="flex gap-5">
-            <a href={GITHUB} className="hover:underline">GitHub</a>
+            <a href={GITHUB} className="inline-flex min-h-8 items-center hover:underline">GitHub</a>
             <span>AGPL-3.0</span>
             <span>Free to self-host</span>
           </span>
@@ -89,36 +90,73 @@ function Logo() {
   );
 }
 
+const SECTIONS: [string, string][] = [
+  ["#mac", "Run on Mac"],
+  ["#open-source", "Open source"],
+  ["#editor", "Editor"],
+  ["#templates", "Templates"],
+  ["#languages", "Languages"],
+  ["#pricing", "Pricing"],
+];
+
 function Nav({ accounts }: { accounts: boolean }) {
+  const [open, setOpen] = useState(false);
   return (
     <header className="sticky top-0 z-30 px-4 pt-4">
       <div
-        className="mx-auto flex h-14 max-w-6xl items-center gap-6 rounded-2xl border px-4 backdrop-blur-xl"
+        className="relative mx-auto flex h-14 max-w-6xl items-center gap-6 rounded-2xl border px-4 backdrop-blur-xl"
         style={{ background: "rgba(246,242,234,0.8)", borderColor: C.line }}
       >
         <Logo />
-        <nav className="hidden gap-6 text-[14px] md:flex" style={{ color: C.soft }}>
-          <a href="#mac" className="hover:text-black">Run on Mac</a>
-          <a href="#editor" className="hover:text-black">Editor</a>
-          <a href="#templates" className="hover:text-black">Templates</a>
-          <a href="#languages" className="hover:text-black">Languages</a>
-          <a href="#open-source" className="hover:text-black">Open source</a>
-          <a href="#pricing" className="hover:text-black">Pricing</a>
+        <nav className="hidden gap-6 whitespace-nowrap text-[14px] lg:flex" style={{ color: C.soft }}>
+          {SECTIONS.map(([href, label]) => (
+            <a key={href} href={href} className="hover:text-black">
+              {label}
+            </a>
+          ))}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 whitespace-nowrap">
           {accounts && (
-            <Link href="/login" className="hidden h-9 items-center rounded-xl px-3 text-[13px] font-medium sm:flex" style={{ color: C.soft }}>
+            <Link href="/login" className="hidden h-9 items-center rounded-xl px-3 text-[13px] font-medium lg:flex" style={{ color: C.soft }}>
               Log in
             </Link>
           )}
-          <a href={GITHUB} className="flex h-9 items-center gap-2 rounded-xl border px-3 text-[13px] font-medium" style={{ borderColor: C.line, background: "#fff" }}>
+          <a href={GITHUB} aria-label="GitHub" className="flex h-9 items-center gap-2 rounded-xl border px-3 text-[13px] font-medium" style={{ borderColor: C.line, background: "#fff" }}>
             <GitHubIcon className="size-4" />
             <span className="hidden sm:inline">Star</span>
           </a>
           <Link href="/app" className="flex h-9 items-center rounded-xl px-4 text-[13px] font-medium text-white" style={{ background: C.maroon }}>
             Open app
           </Link>
+          <button
+            onClick={() => setOpen(!open)}
+            aria-label={open ? "Close menu" : "Menu"}
+            aria-expanded={open}
+            className="flex size-9 items-center justify-center rounded-xl border lg:hidden"
+            style={{ borderColor: C.line, background: "#fff" }}
+          >
+            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d={open ? "M6 6l12 12M18 6L6 18" : "M4 7h16M4 12h16M4 17h16"} />
+            </svg>
+          </button>
         </div>
+        {open && (
+          <div
+            className="absolute inset-x-0 top-[calc(100%+8px)] rounded-2xl border p-2 shadow-[0_20px_40px_-20px_rgba(29,23,20,0.35)] lg:hidden"
+            style={{ background: C.card, borderColor: C.line }}
+          >
+            {SECTIONS.map(([href, label]) => (
+              <a key={href} href={href} onClick={() => setOpen(false)} className="flex h-11 items-center rounded-xl px-3 text-[15px] hover:bg-black/5">
+                {label}
+              </a>
+            ))}
+            {accounts && (
+              <Link href="/login" className="mt-1 flex h-11 items-center rounded-xl border-t px-3 text-[15px] font-medium" style={{ borderColor: C.line }}>
+                Log in
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );
@@ -222,13 +260,13 @@ function Statement() {
     </span>
   );
   return (
-    <section className="mx-4 mb-24 rounded-[32px] px-6 py-20 text-center sm:px-12" style={{ background: C.maroon, color: "#f6efe7" }}>
+    <section className="mx-4 my-24 rounded-[32px] px-6 py-20 text-center sm:px-12" style={{ background: C.maroon, color: "#f6efe7" }}>
       <span className="rounded-md bg-white/10 px-2.5 py-1 text-[12px] font-medium tracking-wide">Why lafz</span>
       <p className="mx-auto mt-8 max-w-4xl text-[26px] leading-[1.3] tracking-[-0.02em] sm:text-[38px]">
         Every other captioner uploads your video to its cloud and bills you a subscription. Lafz runs{" "}
         {chip(<><MacIcon className="mr-1.5 size-3.5" /> on your Mac</>)} <Em>with Wi-Fi off,</Em> spells{" "}
         {chip("🎙️ Indian languages")} the way you type, and it&apos;s {chip(<><GitHubIcon className="mr-1.5 size-3.5" /> open source.</>)}{" "}
-        <span className="opacity-50">No Mac? Use ours, and pay only for the minutes you caption.</span>
+        <span className="opacity-50">No Mac? Use ours, and pay only when you export.</span>
       </p>
       <div className="mx-auto mt-14 grid max-w-3xl grid-cols-3 divide-x divide-white/15">
         {[
@@ -483,17 +521,17 @@ function OnYourMac() {
   );
 }
 
-const LOCAL = [
-  { c: "git clone https://github.com/aditya01k/lafz && cd lafz", note: "Get the code" },
-  { c: "pnpm install", note: "Install" },
-  { c: "cp .env.example .env.local", note: "Add your own Sarvam and OpenAI keys" },
-  { c: "pnpm dev", note: "Open localhost:3300. Every feature, no sign-in" },
+const OPEN = [
+  { title: "Read every line", body: "AGPL-3.0. Nothing hidden about what happens to your audio." },
+  { title: "Host it anywhere", body: "One Docker image on your own server, with your own Sarvam and OpenAI keys." },
+  { title: "Make it better", body: "Add a template or improve a language. Your name goes on it." },
+  { title: "Never locked in", body: "Captions export as SRT, VTT and plain text. Your styles are plain JSON files." },
 ];
 
 /** The open-source pitch, given its own dark section so it can't be missed. */
 function OpenSource() {
   return (
-    <section id="open-source" className="mx-4 my-8 rounded-[32px] px-6 py-20 sm:px-12" style={{ background: C.ink, color: "#f6efe7" }}>
+    <section id="open-source" className="mx-4 rounded-[32px] px-6 py-20 sm:px-12" style={{ background: C.ink, color: "#f6efe7" }}>
       <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
         <div className="min-w-0">
           <span className="rounded-md bg-white/10 px-2.5 py-1 text-[12px] font-medium">Open source · AGPL-3.0</span>
@@ -512,24 +550,13 @@ function OpenSource() {
             <Command text={CLONE} dark />
           </div>
         </div>
-        <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-          <div className="flex h-10 items-center gap-1.5 border-b border-white/10 px-4">
-            <span className="size-2.5 rounded-full bg-white/20" />
-            <span className="size-2.5 rounded-full bg-white/20" />
-            <span className="size-2.5 rounded-full bg-white/20" />
-            <span className="ml-3 font-mono text-[12px] opacity-50">Terminal</span>
-          </div>
-          <div className="space-y-4 p-6 font-mono text-[13px] leading-relaxed">
-            {LOCAL.map((s) => (
-              <div key={s.c}>
-                <div className="opacity-40"># {s.note}</div>
-                <div className="break-all">
-                  <span className="opacity-40">$ </span>
-                  {s.c}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+          {OPEN.map((x) => (
+            <div key={x.title} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+              <div className="text-[16px] font-medium">{x.title}</div>
+              <p className="mt-1.5 text-[14px] leading-relaxed opacity-60">{x.body}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>

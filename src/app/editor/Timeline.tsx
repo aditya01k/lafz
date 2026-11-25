@@ -186,7 +186,7 @@ export default function Timeline({
     <div className="select-none">
       <div
         ref={box}
-        className="relative h-[132px] overflow-hidden rounded-lg border border-hairline bg-black/50"
+        className="relative h-[108px] touch-none sm:h-[132px] overflow-hidden rounded-lg border border-hairline bg-black/50"
         onPointerMove={onMove}
         onPointerUp={end}
         onPointerCancel={end}
@@ -220,7 +220,7 @@ export default function Timeline({
         </div>
 
         {/* Waveform */}
-        <canvas ref={wave} className="pointer-events-none absolute inset-x-0 bottom-0 h-[44px] w-full" />
+        <canvas ref={wave} className="pointer-events-none absolute inset-x-0 bottom-0 h-[34px] w-full sm:h-[44px]" />
 
         {/* Empty track: click to seek, drag to pan */}
         <div
@@ -246,7 +246,7 @@ export default function Timeline({
               onPointerDown={(e) => grab(e, "move", i)}
               onDoubleClick={() => onSeek(l.start)}
               title={`${formatTime(l.start, tc)} – ${formatTime(l.end, tc)}`}
-              className={`group absolute top-[34px] h-[46px] cursor-grab overflow-hidden rounded-md border text-[11px] leading-tight active:cursor-grabbing ${
+              className={`group absolute top-[29px] h-[42px] cursor-grab sm:top-[34px] sm:h-[46px] overflow-hidden rounded-md border text-[11px] leading-tight active:cursor-grabbing ${
                 on ? "border-accent bg-accent/30 text-foreground" : "border-white/15 bg-white/[0.12] text-foreground/85 hover:bg-white/20"
               }`}
               style={{ left: x, width: w }}
@@ -270,7 +270,7 @@ export default function Timeline({
 
       {/* Overview: where the window sits in the whole video; drag to pan */}
       <div
-        className="relative mt-1.5 h-1.5 cursor-pointer rounded-full bg-white/10"
+        className="relative mt-1.5 h-1.5 cursor-pointer touch-none rounded-full bg-white/10 before:absolute before:-inset-y-3 before:inset-x-0 before:content-['']"
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);
           const r = e.currentTarget.getBoundingClientRect();

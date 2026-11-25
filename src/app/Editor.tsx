@@ -481,12 +481,12 @@ export default function Editor({
         <button onClick={onClose} title="Back to your videos" className={iconBtn}>
           <Icon d="M15 18l-6-6 6-6" />
         </button>
-        <span className="text-[16px] font-semibold tracking-tight">
+        <span className="hidden text-[16px] font-semibold tracking-tight sm:inline">
           lafz<span className="text-accent">.</span>
         </span>
         <span className="hidden min-w-0 flex-1 items-center gap-2 truncate pl-2 text-[13px] text-muted sm:flex">
           <span className="truncate">{project.file.name}</span>
-          <span className="shrink-0 rounded-full bg-white/5 px-2 py-0.5 text-[11px]">Saved on this device</span>
+          <span className="hidden shrink-0 rounded-full bg-white/5 px-2 py-0.5 text-[11px] lg:inline">Saved on this device</span>
         </span>
         <span className="flex-1 sm:hidden" />
         <div className="flex rounded-full border border-hairline p-0.5 text-[12px]" title="Simple: pick a look and export. Pro: timeline, timecode, QC.">
@@ -529,7 +529,9 @@ export default function Editor({
         <button onClick={() => setKeysOpen(true)} title="Keyboard shortcuts (?)" className={`${iconBtn} hidden ${mode === "pro" ? "sm:flex" : ""}`}>
           <Icon d="M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M8 14h8" />
         </button>
-        <AccountButton />
+        <span className="hidden sm:block">
+          <AccountButton />
+        </span>
         <button onClick={undo} disabled={!past.length} title="Undo (⌘Z)" className={iconBtn}>
           <Icon d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3" />
         </button>
@@ -539,7 +541,7 @@ export default function Editor({
         <button
           onClick={() => setExporting(true)}
           disabled={!size}
-          className="ml-1 hidden items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-[14px] font-semibold text-accent-ink disabled:opacity-40"
+          className="ml-1 flex shrink-0 items-center gap-1.5 rounded-full bg-accent px-3 py-2 text-[14px] font-semibold text-accent-ink disabled:opacity-40 sm:px-4"
         >
           <Icon d="M12 4v12M6 10l6 6 6-6M4 20h16" className="size-4" />
           Export
@@ -550,14 +552,14 @@ export default function Editor({
         {/* Program monitor */}
         <section className="flex min-h-0 flex-col items-center justify-center bg-black/40 p-3 lg:flex-1">
           <div
-            className="relative max-h-[38dvh] max-w-full overflow-hidden rounded-lg bg-black lg:max-h-[calc(100dvh-56px-230px)]"
+            className="relative max-h-[30dvh] sm:max-h-[38dvh] max-w-full overflow-hidden rounded-lg bg-black lg:max-h-[calc(100dvh-56px-230px)]"
             style={size ? { aspectRatio: `${size.width} / ${size.height}` } : undefined}
           >
             <video
               ref={video}
               src={project.url}
               playsInline
-              className="block h-full max-h-[38dvh] w-full lg:max-h-[calc(100dvh-56px-230px)]"
+              className="block h-full max-h-[30dvh] sm:max-h-[38dvh] w-full lg:max-h-[calc(100dvh-56px-230px)]"
               onLoadedMetadata={(e) => {
                 const v = e.currentTarget;
                 const s = { width: v.videoWidth, height: v.videoHeight };
@@ -576,7 +578,7 @@ export default function Editor({
             />
             <canvas
               ref={canvas}
-              className="absolute inset-0 h-full w-full"
+              className="absolute inset-0 h-full w-full touch-none"
               onPointerMove={(e) => {
                 const d = drag.current;
                 if (!d) {

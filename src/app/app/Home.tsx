@@ -103,7 +103,7 @@ export default function Home({
         </p>
 
         {!working && (
-          <div className="mt-6 grid gap-2 sm:grid-cols-2">
+          <div className="mt-6 grid grid-cols-2 gap-2">
             {(
               [
                 ["pro", "Pro editor", "Timeline, frame timecode, quality checks, exports for Premiere and Resolve"],
@@ -113,13 +113,13 @@ export default function Home({
               <button
                 key={m}
                 onClick={() => setMode(m)}
-                className={`rounded-2xl border p-4 text-left transition ${mode === m ? "border-accent bg-accent/10" : "border-hairline bg-surface hover:border-white/20"}`}
+                className={`rounded-2xl border px-3 py-3 text-left transition sm:p-4 ${mode === m ? "border-accent bg-accent/10" : "border-hairline bg-surface hover:border-white/20"}`}
               >
                 <span className="flex items-center gap-2 text-[15px] font-semibold">
                   <span className={`size-3.5 rounded-full border-2 ${mode === m ? "border-accent bg-accent" : "border-white/30"}`} />
                   {title}
                 </span>
-                <span className="mt-1 block pl-[22px] text-[13px] text-muted">{body}</span>
+                <span className="mt-1 hidden pl-[22px] text-[13px] text-muted sm:block">{body}</span>
               </button>
             ))}
           </div>
@@ -187,7 +187,7 @@ function Dropzone({ onFile, error }: { onFile: OnFile; error?: string }) {
           setDrag(false);
           pick(e.dataTransfer.files[0]);
         }}
-        className={`flex w-full flex-col items-center rounded-xl border-2 border-dashed px-6 py-12 transition ${
+        className={`flex w-full flex-col items-center rounded-xl border-2 border-dashed px-6 py-8 transition sm:py-12 ${
           drag ? "border-accent bg-accent/10" : "border-white/15 bg-black/30 hover:border-white/30"
         }`}
       >
@@ -196,7 +196,10 @@ function Dropzone({ onFile, error }: { onFile: OnFile; error?: string }) {
             <path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" />
           </svg>
         </span>
-        <span className="mt-4 text-[16px] font-medium">Drop a video or click to browse</span>
+        <span className="mt-4 text-[16px] font-medium">
+          <span className="pointer-coarse:hidden">Drop a video or click to browse</span>
+          <span className="hidden pointer-coarse:inline">Tap to choose a video</span>
+        </span>
         <span className="mt-1 text-[13px] text-muted">MP4 or MOV, up to 5 min. The video stays on your device.</span>
       </button>
       <input ref={input} type="file" accept="video/*,.mov,.mp4" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
