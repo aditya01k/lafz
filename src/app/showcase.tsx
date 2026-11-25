@@ -14,7 +14,7 @@ import "./fonts";
  */
 
 const FPS = 30;
-const STYLE = { ...templateById("boxed").style, size: templateById("boxed").style.size * 1.15 };
+const STYLE = { ...templateById("boxed").style, size: templateById("boxed").style.size * 1.15, y: 0.645 };
 
 export function EditorShowcase() {
   const video = useRef<HTMLVideoElement>(null);
@@ -22,7 +22,7 @@ export function EditorShowcase() {
   const wave = useRef<HTMLCanvasElement>(null);
   const [words, setWords] = useState<Word[]>([]);
   const [t, setT] = useState(0);
-  const [duration, setDuration] = useState(10.2);
+  const [duration, setDuration] = useState(13.52);
   const lines = useMemo(() => (words.length ? linesFor(words, STYLE) : []), [words]);
   const issues = useMemo(() => checkAll(lines, { ...DEFAULT_QC, fps: FPS }), [lines]);
   const linesRef = useRef<Line[]>([]);
@@ -130,7 +130,7 @@ export function EditorShowcase() {
               loop
               playsInline
               preload="auto"
-              onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 10.2)}
+              onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 13.52)}
               className="absolute inset-0 h-full w-full object-cover"
             />
             <canvas ref={canvas} width={540} height={960} className="absolute inset-0 h-full w-full" />

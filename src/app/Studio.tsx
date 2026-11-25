@@ -51,7 +51,7 @@ export default function Studio() {
       const saved = readSaved(key);
       const project: Project = saved
         ? { file, url: URL.createObjectURL(file), key, ...saved, sample: true }
-        : { file, url: URL.createObjectURL(file), key, words, style: defaultStyle(), duration: 10.2, language: "hindi", script: "latin", sample: true };
+        : { file, url: URL.createObjectURL(file), key, words, style: defaultStyle(), duration: 13.52, language: "hindi", script: "latin", sample: true };
       save(project);
       setPhase({ kind: "edit", project });
     } catch {

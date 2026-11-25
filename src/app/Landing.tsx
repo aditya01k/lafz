@@ -68,10 +68,12 @@ export default function Landing({ accounts }: { accounts: boolean }) {
           <span className="flex items-center gap-2">
             <Logo /> Open source captions, made in India
           </span>
-          <span className="flex gap-5">
+          <span className="flex flex-wrap gap-x-5">
             <a href={GITHUB} className="inline-flex min-h-8 items-center hover:underline">GitHub</a>
-            <span>AGPL-3.0</span>
-            <span>Free to self-host</span>
+            <Link href="/terms" className="inline-flex min-h-8 items-center hover:underline">Terms</Link>
+            <Link href="/privacy" className="inline-flex min-h-8 items-center hover:underline">Privacy</Link>
+            <Link href="/refunds" className="inline-flex min-h-8 items-center hover:underline">Refunds</Link>
+            <span className="inline-flex min-h-8 items-center">AGPL-3.0</span>
           </span>
         </div>
       </footer>

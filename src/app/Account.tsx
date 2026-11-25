@@ -264,7 +264,11 @@ function BuyDialog({
           dev: simulate a paid ₹200 pack
         </button>
       )}
-      <p className="mt-5 text-[12px] text-muted">Payments by Dodo Payments. Or run lafz yourself for free: it&apos;s open source.</p>
+      <p className="mt-5 text-[12px] text-muted">
+        Payments by Dodo Payments. By buying you agree to our{" "}
+        <a href="/terms" target="_blank" className="underline">terms</a> and{" "}
+        <a href="/refunds" target="_blank" className="underline">refund policy</a>. Or run lafz yourself for free: it&apos;s open source.
+      </p>
     </Modal>
   );
 }

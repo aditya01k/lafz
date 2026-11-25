@@ -78,9 +78,14 @@ export default function LoginForm({ google }: { google: boolean }) {
                   {state === "sending" ? "Sending…" : "Email me a sign-in link"}
                 </button>
                 {error && <p className="text-[13px] text-red-300">{error}</p>}
+                <p className="text-[12px] text-muted">
+                  By continuing you agree to the{" "}
+                  <Link href="/terms" className="underline hover:text-foreground">terms</Link> and{" "}
+                  <Link href="/privacy" className="underline hover:text-foreground">privacy policy</Link>.
+                </p>
               </form>
               <p className="mt-8 text-[12px] leading-relaxed text-muted">
-                Captioning costs ₹{RUPEES_PER_MINUTE} a minute, prepaid. Or{" "}
+                Captioning is free; exporting costs ₹{RUPEES_PER_MINUTE} a minute, prepaid. Or{" "}
                 <Link href="/#mac" className="underline hover:text-foreground">
                   run lafz free on your own Mac
                 </Link>

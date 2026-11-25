@@ -108,6 +108,8 @@ export function HeroDemo() {
       DEMO_STYLES.map((id) => {
         const style: Style = { ...defaultStyle(id) };
         style.size *= 1.15;
+        // Where the reel's own subtitles were; they're blurred out of demo.mp4 under ours.
+        style.y = 0.645;
         const b = lineBudget(style);
         void loadFonts(style, words.map((w) => w.text).join(" "));
         return { style, lines: buildLines(words, b.maxWords, b.maxChars) };
