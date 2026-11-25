@@ -23,6 +23,9 @@ create table if not exists credit_ledger (
   at timestamptz not null default now()
 );
 create index if not exists credit_ledger_user on credit_ledger (user_id, at desc);
+-- A transcription's charge stays unsettled until its captions are delivered. One left unsettled
+-- (the server restarted mid-job) is refunded automatically after STALE_CHARGE_MINUTES.
+alter table credit_ledger add column if not exists settled boolean not null default true;
 
 -- Which pack each checkout was for, in case the payment comes back without its metadata.
 create table if not exists checkouts (

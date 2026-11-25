@@ -11,6 +11,6 @@ export async function POST(request: Request) {
   if (!user) return Response.json({ error: "Sign in first." }, { status: 401 });
   const { pack } = (await request.json().catch(() => ({}))) as { pack?: string };
   return Response.json(
-    await creditPayment({ paymentId: `dev_${Date.now()}`, customerId: "dev", sessionId: null, metadata: { user_id: user.id }, packId: pack }),
+    await creditPayment({ paymentId: `dev_${Date.now()}`, customerId: "dev", sessionId: null, metadata: { user_id: user.id }, productIds: [], devPack: pack }),
   );
 }

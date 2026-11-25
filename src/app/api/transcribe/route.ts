@@ -1,7 +1,7 @@
 import { languageById, type Script } from "@/lib/languages";
 import type { TranscribeResult } from "@/lib/types";
 import { billingOn, currentUser } from "@/server/auth";
-import { balance, charge, refundCharge } from "@/server/credits";
+import { balance, charge, refundCharge, settleCharge } from "@/server/credits";
 import { clientIp, spend } from "@/server/limit";
 import { sarvamWords } from "@/server/sarvam";
 import { cleanSpelling } from "@/server/spelling";
@@ -14,6 +14,11 @@ export const maxDuration = 300;
 const MAX_BYTES = 10.5 * 1024 * 1024;
 
 export async function POST(req: Request) {
+  // Refuse oversized bodies before reading them (formData() buffers the whole upload).
+  const declared = Number(req.headers.get("content-length") ?? 0);
+  if (!declared || declared > MAX_BYTES + 64 * 1024) {
+    return Response.json({ error: "Videos can be up to 5 minutes long." }, { status: 413 });
+  }
   const form = await req.formData();
   const audio = form.get("audio");
   if (!(audio instanceof Blob)) return Response.json({ error: "No audio" }, { status: 400 });
@@ -57,6 +62,7 @@ export async function POST(req: Request) {
       words: cleaned.map((w, i) => ({ id: `w${i}`, text: w.text, start: round(w.start), end: round(w.end), emoji: w.emoji })),
       ...(paid ? { seconds: await balance(paid.userId) } : {}),
     };
+    if (paid) await settleCharge(paid.ref);
     return Response.json(result);
   } catch (err) {
     console.error("transcribe failed", err);

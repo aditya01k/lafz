@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import data from "@/data/benchmark.json";
 
@@ -31,7 +32,7 @@ export default function Page() {
   return (
     <main className="flex-1 px-4 py-20" style={{ background: C.paper, color: C.ink }}>
       <div className="mx-auto max-w-4xl">
-        <a href="/" className="text-[14px]" style={{ color: C.soft }}>← lafz</a>
+        <Link href="/" className="text-[14px]" style={{ color: C.soft }}>← lafz</Link>
         <h1 className="mt-6 text-[44px] leading-[1.05] font-normal tracking-[-0.04em] sm:text-[64px]">
           lafz vs Kalakar, <span className="font-serif italic">word for word.</span>
         </h1>

@@ -16,6 +16,13 @@ function build() {
   return betterAuth({
     baseURL: siteUrl(),
     database: db(),
+    // Sign-in links send real email: at most 3 a minute per IP, so nobody can use us to spam an inbox.
+    rateLimit: {
+      enabled: true,
+      window: 60,
+      max: 60,
+      customRules: { "/sign-in/magic-link": { window: 60, max: 3 } },
+    },
     socialProviders: google
       ? { google: { clientId: process.env.GOOGLE_CLIENT_ID!, clientSecret: process.env.GOOGLE_CLIENT_SECRET! } }
       : {},
