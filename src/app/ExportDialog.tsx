@@ -104,7 +104,7 @@ export default function ExportDialog({
                 <span className="text-[12px] text-muted">{o.sub}</span>
               </button>
             ))}
-            {error && <p className="pt-2 text-[13px] text-accent">{error}</p>}
+            {error && <p className="pt-2 text-[13px] text-red-300">{error}</p>}
           </div>
         )}
       </div>

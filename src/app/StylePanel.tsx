@@ -1,42 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { buildLines } from "@/lib/lines";
-import { TEMPLATES, defaultStyle, drawCaptions, loadFonts, templateById, type Style, type Template } from "@/lib/templates";
-import type { Word } from "@/lib/types";
-
-// A sample line for the template thumbnails, timed so the second word is mid-pop.
-const SAMPLE: Word[] = ["kya", "scene", "hai", "bhai"].map((text, i) => ({
-  id: `s${i}`,
-  text,
-  start: i * 0.3,
-  end: i * 0.3 + 0.28,
-}));
-
-function Thumb({ tpl }: { tpl: Template }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    let alive = true;
-    void loadFonts().then(() => {
-      const c = ref.current;
-      if (!alive || !c) return;
-      const ctx = c.getContext("2d")!;
-      const g = ctx.createLinearGradient(0, 0, 0, c.height);
-      g.addColorStop(0, "#3a3f4b");
-      g.addColorStop(1, "#16181d");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, c.width, c.height);
-      // Bigger than real life so the style reads at thumbnail size.
-      const style = { ...defaultStyle(tpl.id), y: 0.5, size: 1.7 };
-      const lines = buildLines(SAMPLE, tpl.maxWords, tpl.maxChars);
-      drawCaptions(ctx, c.width, c.height, 0.47, lines, style);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [tpl]);
-  return <canvas ref={ref} width={270} height={300} className="block w-full rounded-lg" />;
-}
+import { TEMPLATES, defaultStyle, templateById, type Style } from "@/lib/templates";
+import { StyleLoop } from "./demo";
 
 export default function StylePanel({ style, onChange }: { style: Style; onChange: (s: Style) => void }) {
   const tpl = templateById(style.template);
@@ -59,7 +24,7 @@ export default function StylePanel({ style, onChange }: { style: Style; onChange
                 style.template === t.id ? "ring-accent" : "ring-transparent hover:ring-white/15"
               }`}
             >
-              <Thumb tpl={t} />
+              <StyleLoop id={t.id} text="kya scene hai bhai" className="block w-full rounded-lg" />
               <div className="px-1 pt-1.5 pb-0.5 text-[12px] font-semibold">{t.name}</div>
             </button>
           ))}

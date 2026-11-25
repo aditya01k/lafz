@@ -115,32 +115,44 @@ export default function Editor({
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-hairline px-4">
-        <button onClick={onClose} className="text-[15px] font-semibold tracking-tight">
-          lafz<span className="text-accent">.</span>
+      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-hairline px-3 sm:px-4">
+        <button
+          onClick={onClose}
+          title="New video"
+          className="flex size-9 items-center justify-center rounded-full text-muted hover:bg-white/5 hover:text-foreground"
+        >
+          <Icon d="M15 18l-6-6 6-6" />
         </button>
-        <span className="min-w-0 flex-1 truncate text-[13px] text-muted">{project.file.name}</span>
+        <span className="text-[16px] font-semibold tracking-tight">
+          lafz<span className="text-accent">.</span>
+        </span>
+        <span className="hidden min-w-0 flex-1 items-center gap-2 truncate pl-2 text-[13px] text-muted sm:flex">
+          <span className="truncate">{project.file.name}</span>
+          <span className="shrink-0 rounded-full bg-white/5 px-2 py-0.5 text-[11px]">Saved on this device</span>
+        </span>
+        <span className="flex-1 sm:hidden" />
         <button
           onClick={undo}
           disabled={!past.length}
           title="Undo (⌘Z)"
-          className="rounded-lg px-2 py-1.5 text-[13px] text-muted hover:text-foreground disabled:opacity-30"
+          className="flex size-9 items-center justify-center rounded-full text-muted hover:bg-white/5 hover:text-foreground disabled:opacity-30"
         >
-          Undo
+          <Icon d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3" />
         </button>
         <button
           onClick={redo}
           disabled={!future.length}
           title="Redo (⇧⌘Z)"
-          className="rounded-lg px-2 py-1.5 text-[13px] text-muted hover:text-foreground disabled:opacity-30"
+          className="flex size-9 items-center justify-center rounded-full text-muted hover:bg-white/5 hover:text-foreground disabled:opacity-30"
         >
-          Redo
+          <Icon d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h3" />
         </button>
         <button
           onClick={() => setExporting(true)}
           disabled={!size}
-          className="rounded-full bg-accent px-4 py-2 text-[14px] font-semibold text-white disabled:opacity-40"
+          className="ml-1 flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-[14px] font-semibold text-accent-ink disabled:opacity-40"
         >
+          <Icon d="M12 4v12M6 10l6 6 6-6M4 20h16" className="size-4" />
           Export
         </button>
       </header>
@@ -213,6 +225,7 @@ export default function Editor({
                   if (w) seek(w.start);
                 }}
                 onSeek={seek}
+                time={time}
                 words={words}
                 setWords={setWords}
               />
@@ -300,6 +313,7 @@ function Captions({
   selected,
   onSelect,
   onSeek,
+  time,
   words,
   setWords,
 }: {
@@ -308,6 +322,7 @@ function Captions({
   selected?: Word;
   onSelect: (w: Word | null) => void;
   onSeek: (t: number) => void;
+  time: number;
   words: Word[];
   setWords: (w: Word[]) => void;
 }) {
@@ -380,10 +395,14 @@ function Captions({
                       onClick={() => onSelect(selected?.id === w.id ? null : w)}
                       className={`rounded px-0.5 ${
                         selected?.id === w.id
-                          ? "bg-accent text-white"
-                          : w.emphasis
-                            ? "text-[#ffe600]"
-                            : "hover:bg-white/10"
+                          ? "bg-accent text-accent-ink"
+                          : i === activeLine && time >= w.start && time < w.end + 0.08
+                            ? "bg-white/15 text-foreground"
+                            : w.emphasis
+                              ? "text-accent"
+                              : i === activeLine || time < l.start
+                                ? "hover:bg-white/10"
+                                : "text-foreground/60 hover:bg-white/10"
                       }`}
                     >
                       {w.text}
@@ -450,7 +469,7 @@ function WordTools({
           onBlur={() => text.trim() !== word.text && onEdit(text)}
           className="min-w-0 flex-1 rounded-lg border border-hairline bg-surface px-3 py-2 text-[14px] outline-none focus:border-accent"
         />
-        <button type="submit" className="rounded-lg bg-accent px-3 text-[13px] font-semibold text-white">
+        <button type="submit" className="rounded-lg bg-accent px-3 text-[13px] font-semibold text-accent-ink">
           Save
         </button>
       </form>
@@ -467,7 +486,7 @@ function WordTools({
         <button className={btn} onClick={() => onNudge(0.1)} title="Move this line later">
           Line +0.1s
         </button>
-        <button className={`${btn} text-accent`} onClick={onDelete}>
+        <button className={`${btn} text-red-300`} onClick={onDelete}>
           Delete
         </button>
       </div>
@@ -490,5 +509,13 @@ function WordTools({
         </button>
       </form>
     </div>
+  );
+}
+
+function Icon({ d, className = "size-[18px]" }: { d: string; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d={d} />
+    </svg>
   );
 }

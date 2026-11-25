@@ -1,3 +1,4 @@
+import type { Language } from "@/lib/languages";
 import { sliceWav } from "./wav";
 import type { TimedWord } from "./whisper";
 
@@ -37,12 +38,13 @@ export function splitIntoPieces(words: TimedWord[]): Piece[] {
   return pieces;
 }
 
-async function sarvamText(wav: Uint8Array, key: string): Promise<string> {
+async function sarvamText(wav: Uint8Array, key: string, language: Language): Promise<string> {
   const form = new FormData();
   form.append("file", new Blob([wav as BlobPart], { type: "audio/wav" }), "piece.wav");
   form.append("model", "saaras:v4");
-  form.append("mode", "translit");
-  form.append("language_code", "hi-IN");
+  // Roman: everything in Latin script. Native: the language's script with English left in English.
+  form.append("mode", language.script === "roman" ? "translit" : "codemix");
+  form.append("language_code", language.sarvam);
   for (let attempt = 0; ; attempt++) {
     const res = await fetch("https://api.sarvam.ai/speech-to-text", {
       method: "POST",
@@ -95,11 +97,16 @@ export function mapOntoTiming(texts: string[], timing: TimedWord[]): TimedWord[]
   });
 }
 
-export async function sarvamWords(wav: Uint8Array, timing: TimedWord[], key: string): Promise<TimedWord[]> {
+export async function sarvamWords(
+  wav: Uint8Array,
+  timing: TimedWord[],
+  key: string,
+  language: Language,
+): Promise<TimedWord[]> {
   const pieces = splitIntoPieces(timing);
   const results = await Promise.all(
     pieces.map(async (p) => {
-      const text = await sarvamText(sliceWav(wav, p.start - PAD, p.end + PAD), key);
+      const text = await sarvamText(sliceWav(wav, p.start - PAD, p.end + PAD), key, language);
       const tokens = text.split(/\s+/).filter(Boolean);
       // An empty answer for a piece Whisper heard keeps Whisper's words.
       return tokens.length ? mapOntoTiming(tokens, p.words) : p.words;

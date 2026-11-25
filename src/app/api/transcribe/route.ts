@@ -1,3 +1,4 @@
+import { languageById } from "@/lib/languages";
 import { clientIp, spend } from "@/server/limit";
 import { sarvamWords } from "@/server/sarvam";
 import { cleanSpelling } from "@/server/spelling";
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
     .filter(Boolean)
     .slice(0, 50);
 
+  const language = languageById(String(form.get("language") ?? "hinglish"));
   const wav = new Uint8Array(await audio.arrayBuffer());
   if (!spend(clientIp(req), wavDuration(wav))) {
     return Response.json(
@@ -31,10 +33,10 @@ export async function POST(req: Request) {
     );
   }
   try {
-    const timing = await whisperWords(wav);
+    const timing = await whisperWords(wav, language);
     const sarvamKey = process.env.SARVAM_API_KEY;
-    const raw = sarvamKey ? await sarvamWords(wav, timing, sarvamKey) : timing;
-    const cleaned = await cleanSpelling(raw, dictionary);
+    const raw = sarvamKey ? await sarvamWords(wav, timing, sarvamKey, language) : timing;
+    const cleaned = await cleanSpelling(raw, dictionary, language);
     const result: TranscribeResult = {
       engine: sarvamKey ? "sarvam+whisper" : "whisper",
       durationSec: wavDuration(wav),

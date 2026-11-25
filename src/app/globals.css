@@ -1,14 +1,16 @@
 @import "tailwindcss";
 
-/* Dark only: creators judge captions against video, and video reads best on dark. */
+/* Dark only: creators judge captions against video, and video reads best on dark.
+   Marigold is the brand: it's the colour a spoken word lights up in. */
 :root {
-  --background: #0a0a0b;
-  --surface: #141416;
-  --raised: #1c1c1f;
+  --background: #000000;
+  --surface: #0a0a0a;
+  --raised: #171717;
   --hairline: rgb(255 255 255 / 0.08);
-  --foreground: #f4f4f5;
-  --muted: #8e8e95;
-  --accent: #ff5a36;
+  --foreground: #ededed;
+  --muted: #a1a1a1;
+  --accent: #ffc531;
+  --accent-ink: #1a1300;
 }
 
 @theme inline {
@@ -19,11 +21,14 @@
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
-  --font-sans: var(--font-inter);
+  --color-accent-ink: var(--accent-ink);
+  --font-sans: var(--font-geist);
+  --font-mono: var(--font-geist-mono);
 }
 
 html {
   color-scheme: dark;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -33,4 +38,29 @@ body {
 
 input[type="range"] {
   accent-color: var(--accent);
+}
+
+/* A spoken word in a headline: the brand's own caption look. */
+.said {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: 0.18em;
+  padding: 0 0.16em;
+  box-decoration-break: clone;
+}
+
+/* Vercel-style blueprint grid, faded out toward the edges. */
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.045) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 30%, transparent 75%);
+}
+
+.headline {
+  background: linear-gradient(180deg, #fff 30%, rgb(255 255 255 / 0.55));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

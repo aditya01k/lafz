@@ -38,8 +38,8 @@ export default function Studio() {
     FONT_FAMILIES.bebas = bebas.style.fontFamily;
   }, []);
 
-  async function start(file: File, dictionary: string) {
-    const key = cacheKey(file);
+  async function start(file: File, opts: { dictionary: string; language: string }) {
+    const key = `${cacheKey(file)}:${opts.language}`;
     const url = URL.createObjectURL(file);
     // Same file again (after a refresh): reopen the saved edit, no second transcription.
     const saved = readSaved(key);
@@ -54,7 +54,8 @@ export default function Studio() {
       setPhase({ kind: "working", step: 1, name: file.name });
       const form = new FormData();
       form.append("audio", wav, "audio.wav");
-      form.append("dictionary", dictionary);
+      form.append("dictionary", opts.dictionary);
+      form.append("language", opts.language);
       const timer = setTimeout(() => setPhase({ kind: "working", step: 2, name: file.name }), 6000);
       const res = await fetch("/api/transcribe", { method: "POST", body: form });
       clearTimeout(timer);

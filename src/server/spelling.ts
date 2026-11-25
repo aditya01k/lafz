@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
+import { spokenName, type Language } from "@/lib/languages";
 import type { TimedWord } from "./whisper";
 
 let client: OpenAI | undefined;
@@ -10,21 +11,18 @@ const BATCH = 250;
 const Out = z.object({
   words: z.array(
     z.object({
-      text: z.string().describe("The word in Roman Hinglish, or \"\" to drop a duplicate or noise token."),
+      text: z.string().describe("The cleaned word, or \"\" to drop a duplicate or noise token."),
       emoji: z.string().describe("One emoji that fits this word, or \"\". Use sparingly: about one per sentence."),
     }),
   ),
 });
 
-const PROMPT = `You clean up auto-transcribed Hinglish (Hindi-English) speech for video captions.
-You get a numbered list of words. Return exactly one entry per input word, in the same order.
+const COMMON = `You get a numbered list of words. Return exactly one entry per input word, in the same order.
 
 For each word:
-- Write Hindi/Urdu words in Roman script the way Indian creators type on Instagram and WhatsApp:
-  "hai", "nahi", "kya", "bhai", "yaar", "accha", "matlab", "bahut", "kyunki", "wahan", "chahiye", "mein", "hum", "toh".
-- Convert any Devanagari or Urdu script word to that Roman spelling.
+SCRIPT_RULES
 - Keep English words in normal English spelling ("trip", "budget", "honestly", "actually").
-- Fix obvious mishearings using context (an English word Whisper forced onto a Hindi word, or the reverse).
+- Fix obvious mishearings using context (an English word forced onto a native word, or the reverse).
 - Keep brand and place names correctly capitalised (Goa, Manali, PhonePe, IndiGo, Zomato).
 - Keep numbers as digits when spoken as numbers ("5000", "2 din").
 - Drop punctuation except "?" and "!" at the end of a question or exclamation, and apostrophes inside words.
@@ -32,22 +30,38 @@ For each word:
 - Never translate. Never merge or split words: one input word, one output entry.
 Return "" for a word only if it is a stutter duplicate or a non-speech token.`;
 
+function promptFor(language: Language) {
+  const name = spokenName(language);
+  const rules =
+    language.id === "hinglish"
+      ? `- Write Hindi/Urdu words in Roman script the way Indian creators type on Instagram and WhatsApp:
+  "hai", "nahi", "kya", "bhai", "yaar", "accha", "matlab", "bahut", "kyunki", "wahan", "chahiye", "mein", "hum", "toh".
+- Convert any Devanagari or Urdu script word to that Roman spelling.`
+      : language.script === "native"
+        ? `- Write ${name} words in their native script with standard spelling.
+- Write English words in Latin script, as English.`
+        : `- Write ${name} words in Roman script the way ${name} speakers type on Instagram and WhatsApp: common, casual spellings, not formal transliteration with diacritics.
+- Convert any native-script word to that Roman spelling.`;
+  return `You clean up auto-transcribed ${name}-English speech for video captions.\n${COMMON.replace("SCRIPT_RULES", rules)}`;
+}
+
 /** One word in, one word out, so the timings stay attached to the right word. */
 export async function cleanSpelling(
   words: TimedWord[],
   dictionary: string[],
+  language: Language,
 ): Promise<(TimedWord & { emoji?: string })[]> {
   if (!words.length) return [];
   client ??= new OpenAI();
   const out: (TimedWord & { emoji?: string })[] = [];
   for (let i = 0; i < words.length; i += BATCH) {
     const batch = words.slice(i, i + BATCH);
-    out.push(...(await cleanBatch(batch, dictionary)));
+    out.push(...(await cleanBatch(batch, dictionary, language)));
   }
   return out.filter((w) => w.text);
 }
 
-async function cleanBatch(batch: TimedWord[], dictionary: string[]) {
+async function cleanBatch(batch: TimedWord[], dictionary: string[], language: Language) {
   const dict = dictionary.length
     ? `\n\nThe creator's own spellings, always use these exactly: ${dictionary.join(", ")}`
     : "";
@@ -55,7 +69,7 @@ async function cleanBatch(batch: TimedWord[], dictionary: string[]) {
     const response = await client!.responses.parse({
       model: MODEL,
       reasoning: { effort: "low" },
-      instructions: PROMPT + dict,
+      instructions: promptFor(language) + dict,
       input: batch.map((w, i) => `${i + 1}. ${w.text}`).join("\n"),
       text: { format: zodTextFormat(Out, "hinglish_words") },
     });
