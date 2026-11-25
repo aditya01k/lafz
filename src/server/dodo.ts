@@ -21,10 +21,13 @@ export function dodo(): DodoPayments {
 const mode = () => (process.env.DODO_PAYMENTS_ENVIRONMENT === "live_mode" ? "live" : "test");
 
 /**
- * The Dodo product for a pack: made on first use and remembered, so a new deployment
- * (or a self-hoster turning on billing) needs no setup in Dodo's dashboard.
+ * The Dodo product for a pack: DODO_PRODUCT_<PACK ID> if set (the hosted site pins its live
+ * products), else made on first use and remembered, so a self-hoster needs no dashboard setup.
  */
 export async function productFor(pack: Pack): Promise<string> {
+  // Products set up in Dodo's dashboard win: DODO_PRODUCT_M50 etc.
+  const pinned = process.env[`DODO_PRODUCT_${pack.id.toUpperCase()}`];
+  if (pinned) return pinned;
   const key = `dodo_product:${mode()}:${pack.id}`;
   const found = await db().query<{ value: string }>("select value from settings where key = $1", [key]);
   if (found.rows[0]) return found.rows[0].value;
