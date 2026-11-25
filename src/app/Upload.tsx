@@ -83,7 +83,7 @@ const Em = ({ children }: { children: React.ReactNode }) => <span className="fon
 function Logo() {
   return (
     <span className="flex items-center gap-1.5 text-[17px] font-semibold tracking-tight" style={{ color: C.ink }}>
-      <span className="size-3 rounded-[3px] bg-accent" />
+      <img src="/logo-mark.svg" alt="" className="size-6 rounded-[6px]" />
       lafz
     </span>
   );
