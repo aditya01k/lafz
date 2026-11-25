@@ -30,7 +30,7 @@ export const useAccount = () => useContext(Ctx);
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
-  const [dialog, setDialog] = useState<{ kind: "signin" } | { kind: "buy"; reason?: string } | null>(null);
+  const [dialog, setDialog] = useState<{ kind: "buy"; reason?: string } | null>(null);
   const [toast, setToast] = useState("");
 
   const refresh = useCallback(async () => {
@@ -69,14 +69,16 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     me,
     refresh,
     setSeconds: (s) => setMe((m) => (m ? { ...m, seconds: s } : m)),
-    openSignIn: () => setDialog({ kind: "signin" }),
+    // Sign-in lives on its own page now, never in a dialog.
+    openSignIn: () => {
+      location.href = "/login?next=/app";
+    },
     openBuy: (reason) => setDialog({ kind: "buy", reason }),
   };
 
   return (
     <Ctx.Provider value={ctx}>
       {children}
-      {dialog?.kind === "signin" && <SignInDialog onClose={() => setDialog(null)} />}
       {dialog?.kind === "buy" && <BuyDialog reason={dialog.reason} onClose={() => setDialog(null)} onDevPaid={refresh} />}
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-full border border-hairline bg-raised px-4 py-2 text-[14px] shadow-xl">
@@ -89,7 +91,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
 /** Nav / header control: Sign in, or the balance with a way to add credits. */
 export function AccountButton() {
-  const { me, openSignIn, openBuy, refresh } = useAccount();
+  const { me, openBuy } = useAccount();
   const [menu, setMenu] = useState(false);
   if (me?.local) {
     return (
@@ -102,9 +104,9 @@ export function AccountButton() {
   if (!me?.billing) return null;
   if (!me.user) {
     return (
-      <button onClick={openSignIn} className="h-8 rounded-full px-3 text-[13px] text-muted hover:text-foreground">
+      <a href="/login?next=/app" className="h-8 rounded-full px-3 text-[13px] leading-8 text-muted hover:text-foreground">
         Sign in
-      </button>
+      </a>
     );
   }
   return (
@@ -132,8 +134,7 @@ export function AccountButton() {
           <button
             onClick={async () => {
               await authClient.signOut();
-              setMenu(false);
-              await refresh();
+              location.href = "/";
             }}
             className="w-full rounded-lg px-3 py-2 text-left text-[14px] text-muted hover:bg-white/5 hover:text-foreground"
           >
@@ -152,58 +153,6 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
         {children}
       </div>
     </div>
-  );
-}
-
-function SignInDialog({ onClose }: { onClose: () => void }) {
-  const [email, setEmail] = useState("");
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const google = process.env.NEXT_PUBLIC_GOOGLE_SIGNIN === "1";
-  return (
-    <Modal onClose={onClose}>
-      <h2 className="text-[20px] font-semibold tracking-[-0.02em]">Sign in to lafz</h2>
-      <p className="mt-1.5 text-[14px] text-muted">Your credits stay with your account. No password.</p>
-      {state === "sent" ? (
-        <div className="mt-6 rounded-xl border border-hairline bg-black p-4 text-[14px]">
-          Check <span className="font-medium">{email}</span> for a sign-in link. It works for 15 minutes.
-        </div>
-      ) : (
-        <form
-          className="mt-6 space-y-3"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setState("sending");
-            const { error } = await authClient.signIn.magicLink({ email, callbackURL: location.pathname });
-            setState(error ? "error" : "sent");
-          }}
-        >
-          {google && (
-            <>
-              <button
-                type="button"
-                onClick={() => authClient.signIn.social({ provider: "google", callbackURL: location.pathname })}
-                className="h-11 w-full rounded-full border border-hairline text-[14px] font-medium hover:border-white/25"
-              >
-                Continue with Google
-              </button>
-              <div className="text-center text-[12px] text-muted">or</div>
-            </>
-          )}
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="h-11 w-full rounded-xl border border-hairline bg-black px-4 text-[15px] outline-none focus:border-white/30"
-          />
-          <button disabled={state === "sending"} className="h-11 w-full rounded-full bg-white text-[14px] font-medium text-black disabled:opacity-50">
-            {state === "sending" ? "Sending…" : "Email me a sign-in link"}
-          </button>
-          {state === "error" && <p className="text-[13px] text-red-300">Couldn&apos;t send the link. Check the address and try again.</p>}
-        </form>
-      )}
-    </Modal>
   );
 }
 

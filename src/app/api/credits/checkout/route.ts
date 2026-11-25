@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       // Off: discount codes on this Dodo account would apply here too, so a code made for
       // another product could hand out free credits.
       feature_flags: { allow_discount_code: false },
-      return_url: `${siteUrl()}/?paid=${pack.id}`,
+      return_url: `${siteUrl()}/app?paid=${pack.id}`,
     });
     await db().query("insert into checkouts (session_id, user_id, pack) values ($1, $2, $3)", [session.session_id, user.id, pack.id]);
     if (!session.checkout_url) return Response.json({ error: "Checkout couldn't start. Please try again." }, { status: 502 });

@@ -9,7 +9,7 @@ import type { TranscribeResult, Word } from "@/lib/types";
 import { useAccount } from "./Account";
 import Editor from "./Editor";
 import "./fonts";
-import Upload from "./Upload";
+import Home, { rememberRecent } from "./app/Home";
 
 const MAX_SECONDS = 5 * 60;
 
@@ -45,13 +45,14 @@ export default function Studio() {
     // A saved style may use a font uploaded in an earlier session.
     await restoreCustomFonts();
     if (saved) {
+      rememberRecent({ key, name: file.name, duration: saved.duration, language: saved.language, script: saved.script, at: Date.now() });
       setPhase({ kind: "edit", project: { file, url, key, ...saved } });
       return;
     }
-    // Hosted: sign in before spending time reading the audio.
+    // Hosted: a session that expired mid-visit goes back to the sign-in page.
     if (account.me?.billing && !account.me.user) {
       URL.revokeObjectURL(url);
-      account.openSignIn();
+      location.href = "/login?next=/app";
       return;
     }
     try {
@@ -68,7 +69,7 @@ export default function Studio() {
       const res = await fetch("/api/transcribe", { method: "POST", body: form });
       clearTimeout(timer);
       const json = (await res.json()) as TranscribeResult & { error?: string; code?: string; needed?: number };
-      if (json.code === "signin") account.openSignIn();
+      if (json.code === "signin") location.href = "/login?next=/app";
       if (json.code === "credits") {
         account.setSeconds(json.seconds ?? 0);
         account.openBuy(`This video needs ${minutesLabel(json.needed ?? 0)} and you have ${minutesLabel(json.seconds ?? 0)}.`);
@@ -78,6 +79,7 @@ export default function Studio() {
       if (!json.words.length) throw new Error("We couldn't hear any speech in this video.");
       const project: Project = { file, url, key, words: json.words, style: defaultStyle(), duration, language: opts.language, script: opts.script };
       save(project);
+      rememberRecent({ key, name: file.name, duration, language: opts.language, script: opts.script, at: Date.now() });
       setPhase({ kind: "edit", project });
     } catch (err) {
       URL.revokeObjectURL(url);
@@ -98,7 +100,7 @@ export default function Studio() {
     );
   }
   return (
-    <Upload
+    <Home
       onFile={start}
       error={phase.kind === "upload" ? phase.error : undefined}
       working={phase.kind === "working" ? { step: phase.step, name: phase.name } : undefined}

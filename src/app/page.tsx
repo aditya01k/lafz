@@ -1,10 +1,6 @@
-import { AccountProvider } from "./Account";
-import Studio from "./Studio";
+import { billingOn } from "@/server/auth";
+import Landing from "./Landing";
 
 export default function Home() {
-  return (
-    <AccountProvider>
-      <Studio />
-    </AccountProvider>
-  );
+  return <Landing accounts={billingOn()} />;
 }

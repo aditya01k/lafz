@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { LANGUAGES, languageById, type Script } from "@/lib/languages";
-import { PACKS, RUPEES_PER_MINUTE, minutesLabel } from "@/lib/pricing";
-import { AccountButton, useAccount } from "./Account";
+import Link from "next/link";
+import { useState } from "react";
+import { LANGUAGES } from "@/lib/languages";
+import { PACKS, RUPEES_PER_MINUTE } from "@/lib/pricing";
 import { HeroDemo, Playground } from "./demo";
 
 /**
@@ -12,7 +12,6 @@ import { HeroDemo, Playground } from "./demo";
  * own machine" is the first thing said and is repeated in every section that talks price.
  */
 
-const STEPS = ["Reading the audio", "Listening to every word", "Fixing the spellings"];
 const GITHUB = "https://github.com/aditya01k/lafz";
 const CLONE = "git clone https://github.com/aditya01k/lafz";
 
@@ -27,27 +26,17 @@ const C = {
   maroonSoft: "#5a2626",
 };
 
-type OnFile = (f: File, opts: { dictionary: string; language: string; script: Script }) => void;
 
-export default function Upload({ onFile, error, working }: { onFile: OnFile; error?: string; working?: { step: number; name: string } }) {
-  const pickRef = useRef<() => void>(() => {});
-  const start = () => {
-    document.getElementById("try")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(() => pickRef.current(), 450);
-  };
+export default function Landing({ accounts }: { accounts: boolean }) {
   return (
     <div className="flex-1" style={{ background: C.paper, color: C.ink }}>
-      <Nav onStart={start} />
+      <Nav accounts={accounts} />
       <main>
-        <Hero onStart={start} />
+        <Hero />
         <Statement />
         <OnYourMac />
 
-        <section id="try" className="px-4 pb-24">
-          <div className="mx-auto max-w-3xl rounded-[28px] border p-6 sm:p-10" style={{ background: C.card, borderColor: C.line }}>
-            {working ? <Progress {...working} /> : <TryIt onFile={onFile} error={error} pickRef={pickRef} />}
-          </div>
-        </section>
+        <StartCta accounts={accounts} />
 
         <section id="styles" className="border-t px-4 py-24" style={{ borderColor: C.line }}>
           <div className="mx-auto max-w-6xl">
@@ -61,7 +50,7 @@ export default function Upload({ onFile, error, working }: { onFile: OnFile; err
         <Compare />
         <Languages />
         <OpenSource />
-        <Pricing onStart={start} />
+        <Pricing />
       </main>
       <footer className="border-t px-4" style={{ borderColor: C.line }}>
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 py-10 text-[13px]" style={{ color: C.soft }}>
@@ -90,7 +79,7 @@ function Logo() {
   );
 }
 
-function Nav({ onStart }: { onStart: () => void }) {
+function Nav({ accounts }: { accounts: boolean }) {
   return (
     <header className="sticky top-0 z-30 px-4 pt-4">
       <div
@@ -106,16 +95,18 @@ function Nav({ onStart }: { onStart: () => void }) {
           <a href="#pricing" className="hover:text-black">Pricing</a>
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <div className="hidden sm:block [&_button]:!border-black/15 [&_button]:!text-[#1d1714] [&_.text-muted]:!text-[#6f645c]">
-            <AccountButton />
-          </div>
+          {accounts && (
+            <Link href="/login" className="hidden h-9 items-center rounded-xl px-3 text-[13px] font-medium sm:flex" style={{ color: C.soft }}>
+              Log in
+            </Link>
+          )}
           <a href={GITHUB} className="flex h-9 items-center gap-2 rounded-xl border px-3 text-[13px] font-medium" style={{ borderColor: C.line, background: "#fff" }}>
             <GitHubIcon className="size-4" />
             <span className="hidden sm:inline">Star</span>
           </a>
-          <button onClick={onStart} className="h-9 rounded-xl px-4 text-[13px] font-medium text-white" style={{ background: C.maroon }}>
-            Caption a reel
-          </button>
+          <Link href="/app" className="flex h-9 items-center rounded-xl px-4 text-[13px] font-medium text-white" style={{ background: C.maroon }}>
+            Open app
+          </Link>
         </div>
       </div>
     </header>
@@ -143,7 +134,7 @@ function Circuit() {
   );
 }
 
-function Hero({ onStart }: { onStart: () => void }) {
+function Hero() {
   return (
     <section className="relative overflow-hidden px-4 pt-16 pb-10 sm:pt-24">
       <Circuit />
@@ -160,9 +151,9 @@ function Hero({ onStart }: { onStart: () => void }) {
           <span aria-hidden>→</span>
         </a>
         <h1 className="mt-8 text-[46px] leading-[1.02] font-normal tracking-[-0.045em] sm:text-[80px]">
-          Indian captions,
+          Captions that speak
           <br />
-          <Em>right on your Mac.</Em>
+          <Em>your language.</Em>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed sm:text-[19px]" style={{ color: C.soft }}>
           Hindi, Tamil, Telugu and more, spelled the way you type and timed word by word. Free and offline on any M-series Mac.
@@ -176,9 +167,9 @@ function Hero({ onStart }: { onStart: () => void }) {
           >
             <MacIcon className="size-4" /> Run it on your Mac · free
           </a>
-          <button onClick={onStart} className="h-12 rounded-xl border px-6 text-[15px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
+          <Link href="/app" className="flex h-12 items-center rounded-xl border px-6 text-[15px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
             No Mac? Caption online · ₹{RUPEES_PER_MINUTE}/min
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -279,174 +270,32 @@ function Command({ text, dark }: { text: string; dark?: boolean }) {
   );
 }
 
-/**
- * Hosted: sign in first, then the upload box (with the balance, and a nudge to add credits at
- * zero). Self-hosted and local copies have no accounts and go straight to the upload box.
- */
-function TryIt({ onFile, error, pickRef }: { onFile: OnFile; error?: string; pickRef: React.RefObject<() => void> }) {
-  const { me, openSignIn, openBuy } = useAccount();
-  useEffect(() => {
-    if (me?.billing && !me.user) pickRef.current = openSignIn;
-  }, [me, openSignIn, pickRef]);
-  if (me?.billing && !me.user) {
-    return (
-      <div className="py-4 text-center">
+/** Where to start: the app online, or the free Mac version. */
+function StartCta({ accounts }: { accounts: boolean }) {
+  return (
+    <section className="px-4 pb-24">
+      <div className="mx-auto max-w-3xl rounded-[28px] border p-8 text-center sm:p-12" style={{ background: C.card, borderColor: C.line }}>
         <span className="rounded-md border px-2.5 py-1 text-[12px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
           Get started
         </span>
-        <h3 className="mt-4 text-[30px] leading-tight font-normal tracking-[-0.03em] sm:text-[38px]">
-          Sign in to <Em>caption your first reel.</Em>
+        <h3 className="mt-4 text-[30px] leading-tight font-normal tracking-[-0.03em] sm:text-[40px]">
+          Caption your next reel <Em>in a minute.</Em>
         </h3>
         <p className="mx-auto mt-3 max-w-md text-[15px]" style={{ color: C.soft }}>
-          ₹{RUPEES_PER_MINUTE} a minute, prepaid. Your credits and saved styles stay with your account. No password: we email you a link.
+          {accounts
+            ? `Free and offline on your Mac, or online at ₹${RUPEES_PER_MINUTE} a minute with nothing to install.`
+            : "Open the app and drop a reel."}
         </p>
         <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <button onClick={openSignIn} className="h-12 rounded-xl px-6 text-[15px] font-medium text-white" style={{ background: C.maroon }}>
-            Sign in with email
-          </button>
-          <a href="#mac" className="flex h-12 items-center rounded-xl border px-6 text-[15px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
-            Or run it free on your Mac
+          <a href="#mac" className="flex h-12 items-center gap-2 rounded-xl px-6 text-[15px] font-medium text-white" style={{ background: C.maroon }}>
+            <MacIcon className="size-4" /> Run it on your Mac
           </a>
+          <Link href="/app" className="flex h-12 items-center rounded-xl border px-6 text-[15px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
+            Open the app online
+          </Link>
         </div>
       </div>
-    );
-  }
-  const empty = me?.billing && me.user && (me.seconds ?? 0) < 1;
-  return (
-    <>
-      {me?.billing && me.user && (
-        <div
-          className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-[14px]"
-          style={{ background: empty ? "#fff7e0" : "#fff", borderColor: C.line }}
-        >
-          <span>
-            {empty ? "You have no minutes yet." : <>You have <b>{minutesLabel(me.seconds ?? 0)}</b> of captioning.</>}
-            <span style={{ color: C.soft }}> Signed in as {me.user.email}</span>
-          </span>
-          <button onClick={() => openBuy()} className="h-9 rounded-lg px-3.5 text-[13px] font-medium text-white" style={{ background: C.maroon }}>
-            {empty ? `Add credits · from ₹${PACKS[0].rupees}` : "Add credits"}
-          </button>
-        </div>
-      )}
-      <Dropzone onFile={onFile} error={error} pickRef={pickRef} />
-    </>
-  );
-}
-
-function Dropzone({ onFile, error, pickRef }: { onFile: OnFile; error?: string; pickRef: React.RefObject<() => void> }) {
-  const input = useRef<HTMLInputElement>(null);
-  const [drag, setDrag] = useState(false);
-  const [dictionary, setDictionary] = useState("");
-  const [language, setLanguage] = useState("hindi");
-  const [script, setScript] = useState<Script>("latin");
-  const lang = languageById(language);
-  useEffect(() => {
-    pickRef.current = () => input.current?.click();
-  }, [pickRef]);
-
-  const pick = (f?: File | null) => {
-    if (f && (f.type.startsWith("video/") || /\.(mp4|mov|m4v|webm)$/i.test(f.name))) onFile(f, { dictionary, language, script });
-  };
-  const field = { background: "#fff", borderColor: C.line };
-
-  return (
-    <div>
-      <div className="text-center">
-        <span className="rounded-md border px-2.5 py-1 text-[12px] font-medium" style={field}>Try it</span>
-        <h3 className="mt-4 text-[30px] leading-tight font-normal tracking-[-0.03em] sm:text-[38px]">
-          Drop a reel. <Em>Captions in seconds.</Em>
-        </h3>
-      </div>
-      <button
-        type="button"
-        onClick={() => input.current?.click()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDrag(true);
-        }}
-        onDragLeave={() => setDrag(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDrag(false);
-          pick(e.dataTransfer.files[0]);
-        }}
-        className="mt-8 flex w-full flex-col items-center rounded-2xl border-2 border-dashed px-6 py-12 transition"
-        style={{ borderColor: drag ? C.maroon : "rgba(29,23,20,0.2)", background: drag ? "#fff" : "rgba(255,255,255,0.55)" }}
-      >
-        <span className="flex size-11 items-center justify-center rounded-xl text-white" style={{ background: C.maroon }}>
-          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" />
-          </svg>
-        </span>
-        <span className="mt-4 text-[16px] font-medium">Drop a video or click to browse</span>
-        <span className="mt-1 text-[13px]" style={{ color: C.soft }}>MP4 or MOV, up to 5 min. The video stays on your device.</span>
-      </button>
-      <input ref={input} type="file" accept="video/*,.mov,.mp4" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
-
-      <div className="mt-5 grid gap-3 text-[13px] sm:grid-cols-[1fr_1.4fr]">
-        <label className="block">
-          <span style={{ color: C.soft }}>Language</span>
-          <select value={language} onChange={(e) => setLanguage(e.target.value)} className="mt-1.5 h-11 w-full rounded-xl border px-3 outline-none" style={field}>
-            {LANGUAGES.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div>
-          <span style={{ color: C.soft }}>Write in</span>
-          <div className="mt-1.5 grid grid-cols-2 gap-1 rounded-xl border p-1" style={field}>
-            {(["latin", "native"] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setScript(s)}
-                className="rounded-lg px-2.5 py-1.5 text-left transition"
-                style={script === s ? { background: C.maroon, color: "#fff" } : { color: C.soft }}
-              >
-                <span className="block text-[12px] font-medium">{s === "latin" ? "English letters" : lang.scriptName}</span>
-                <span className="block truncate text-[12px] opacity-75">{s === "latin" ? lang.latinSample : lang.nativeSample}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-      <input
-        value={dictionary}
-        onChange={(e) => setDictionary(e.target.value)}
-        placeholder="Names and brands to spell right, e.g. Zostel, PhonePe (optional)"
-        className="mt-3 h-11 w-full rounded-xl border px-3 text-[13px] outline-none placeholder:opacity-60"
-        style={field}
-      />
-      {error && <p className="mt-4 rounded-xl border border-red-700/20 bg-red-700/10 px-4 py-3 text-[13px] text-red-900">{error}</p>}
-      <p className="mt-5 text-center text-[12px]" style={{ color: C.soft }}>
-        ₹{RUPEES_PER_MINUTE} a minute here, or <a href="#open-source" className="underline">free on your own machine</a>.
-      </p>
-    </div>
-  );
-}
-
-function Progress({ step, name }: { step: number; name: string }) {
-  return (
-    <div className="mx-auto max-w-md py-4">
-      <div className="text-[12px] font-medium uppercase tracking-[0.12em]" style={{ color: C.soft }}>Working</div>
-      <div className="mt-2 truncate text-[22px] tracking-[-0.02em]">{name}</div>
-      <ol className="mt-6 space-y-4">
-        {STEPS.map((s, i) => (
-          <li key={s} className="flex items-center gap-3 text-[15px]">
-            <span
-              className={`flex size-5 items-center justify-center rounded-full text-[11px] font-bold ${i === step ? "animate-pulse" : ""}`}
-              style={i < step ? { background: C.maroon, color: "#fff" } : { border: `2px solid ${i === step ? C.maroon : C.line}` }}
-            >
-              {i < step ? "✓" : ""}
-            </span>
-            <span style={i > step ? { color: C.soft } : undefined}>{s}</span>
-          </li>
-        ))}
-      </ol>
-      <p className="mt-6 text-[13px]" style={{ color: C.soft }}>A 1-minute reel takes about 20 seconds.</p>
-    </div>
+    </section>
   );
 }
 
@@ -639,7 +488,7 @@ function OpenSource() {
   );
 }
 
-function Pricing({ onStart }: { onStart: () => void }) {
+function Pricing() {
   return (
     <section id="pricing" className="px-4 py-24">
       <div className="mx-auto max-w-5xl">
@@ -678,9 +527,9 @@ function Pricing({ onStart }: { onStart: () => void }) {
                 <Check key={x}>{x}</Check>
               ))}
             </ul>
-            <button onClick={onStart} className="mt-8 h-11 rounded-xl bg-white px-5 text-[14px] font-medium text-black">
-              Caption a reel
-            </button>
+            <Link href="/app" className="mt-8 inline-flex h-11 items-center rounded-xl bg-white px-5 text-[14px] font-medium text-black">
+              Open the app
+            </Link>
           </div>
         </div>
       </div>
