@@ -10,6 +10,10 @@ export type Word = {
   breakBefore?: boolean;
   /** Emoji suggested for this word; shown when emojis are on. */
   emoji?: string;
+  /** Stays in the same caption as the word before, whatever the automatic rules say. */
+  keepWithPrev?: boolean;
+  /** On a caption's last word: the caption's exact out point, set by trimming it. */
+  outAt?: number;
 };
 
 export type TranscribeResult = {

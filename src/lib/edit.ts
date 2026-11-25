@@ -69,3 +69,163 @@ export function replaceAll(words: Word[], find: string, replace: string): { word
   });
   return { words: out.filter((w) => w.text.trim()), count };
 }
+
+// ---- Caption-level edits (the timeline and the captions panel) ----
+// A caption is a run of words; it's addressed by its words' ids.
+
+const ids = (line: { words: Word[] }) => new Set(line.words.map((w) => w.id));
+
+/**
+ * Hand edits fix where captions start, so one edit never re-flows the captions after it:
+ * the given words each start a caption.
+ */
+function pin(words: Word[], ...starts: (string | undefined)[]): Word[] {
+  const set = new Set(starts.filter(Boolean));
+  if (!set.size) return words;
+  return words.map((w, i) => (set.has(w.id) && i > 0 && !w.breakBefore ? { ...w, breakBefore: true, keepWithPrev: false } : w));
+}
+/** The word right after a caption. */
+const after = (words: Word[], line: { words: Word[] }) => words[words.findIndex((w) => w.id === line.words.at(-1)!.id) + 1]?.id;
+
+type Span = { words: Word[]; start: number; end: number };
+
+/**
+ * Moves a caption in time. Dragging it into a neighbour trims that neighbour's edge (like an
+ * overwrite in Premiere), leaving it at least 0.2 s; it never jumps past one.
+ */
+export function moveCaption(words: Word[], line: Span, delta: number, prev?: Span, next?: Span): Word[] {
+  const MIN = 0.2;
+  let d = delta;
+  d = Math.max(d, -line.start);
+  if (prev) d = Math.max(d, prev.start + MIN - line.start);
+  if (next) d = Math.min(d, next.end - MIN - line.end);
+  if (Math.abs(d) < 1e-4) return words;
+  let out = words;
+  if (next && line.end + d > next.start) out = trimCaption(out, next, "in", line.end + d, true);
+  if (prev && line.start + d < prev.end) out = trimCaption(out, prev, "out", line.start + d, true);
+  const set = ids(line);
+  const lastId = line.words.at(-1)!.id;
+  const moved = out.map((w) =>
+    set.has(w.id) ? { ...w, start: w.start + d, end: w.end + d, ...(w.id === lastId ? { outAt: line.end + d } : {}) } : w,
+  );
+  return pin(moved, prev?.words[0].id, line.words[0].id, next?.words[0].id, next && after(words, next));
+}
+
+/**
+ * Sets a caption's in or out point. The words inside are re-spaced to fit, and the out point is
+ * kept exactly (like trimming a clip in Premiere).
+ */
+export function trimCaption(words: Word[], line: Span, edge: "in" | "out", t: number, force = false): Word[] {
+  const set = ids(line);
+  const idx = words.map((w, i) => (set.has(w.id) ? i : -1)).filter((i) => i >= 0);
+  if (!idx.length) return words;
+  const prevEnd = force ? 0 : (words[idx[0] - 1]?.outAt ?? words[idx[0] - 1]?.end ?? 0);
+  const nextStart = force ? Infinity : (words[idx.at(-1)! + 1]?.start ?? Infinity);
+  const newStart = edge === "in" ? Math.min(Math.max(t, prevEnd), line.end - 0.1) : line.start;
+  const newEnd = edge === "out" ? Math.max(Math.min(t, nextStart), line.start + 0.1) : line.end;
+  const oldStart = line.start;
+  const oldSpan = Math.max(0.01, line.end - line.start);
+  const k = (newEnd - newStart) / oldSpan;
+  const map = (x: number) => newStart + (Math.min(x, line.end) - oldStart) * k;
+  const lastId = line.words.at(-1)!.id;
+  const out = words.map((w) =>
+    set.has(w.id) ? { ...w, start: map(w.start), end: map(w.end), ...(w.id === lastId ? { outAt: newEnd } : { outAt: undefined }) } : w,
+  );
+  return pin(out, line.words[0].id, after(words, line));
+}
+
+/** Drags one edge of a caption; pulling it into a neighbour trims the neighbour (to 0.2 s at least). */
+export function trimEdge(words: Word[], line: Span, edge: "in" | "out", t: number, prev?: Span, next?: Span): Word[] {
+  const MIN = 0.2;
+  if (edge === "out") {
+    const end = Math.max(line.start + 0.1, next ? Math.min(t, next.end - MIN) : t);
+    const out = next && end > next.start ? trimCaption(words, next, "in", end, true) : words;
+    return pin(trimCaption(out, line, "out", end, true), line.words[0].id, next?.words[0].id, next && after(words, next));
+  }
+  const start = Math.min(line.end - 0.1, Math.max(0, prev ? Math.max(t, prev.start + MIN) : t));
+  const out = prev && start < prev.end ? trimCaption(words, prev, "out", start, true) : words;
+  return pin(trimCaption(out, line, "in", start, true), prev?.words[0].id, line.words[0].id, after(words, line));
+}
+
+/** Splits a caption in two at the word boundary nearest t (like the razor in Premiere). */
+export function splitAt(words: Word[], line: Span, t: number): Word[] {
+  const cut = line.words
+    .slice(1)
+    .reduce<Word | null>((best, w) => (!best || Math.abs(w.start - t) < Math.abs(best.start - t) ? w : best), null);
+  if (!cut) return words;
+  const i = words.findIndex((w) => w.id === cut.id);
+  const out = words.map((w, j) => (j === i ? { ...w, keepWithPrev: false } : j === i - 1 ? { ...w, outAt: undefined } : w));
+  return pin(out, line.words[0].id, cut.id, after(words, line));
+}
+
+/** Joins a caption with the one after it. */
+export function mergeWithNext(words: Word[], line: { words: Word[] }, next: { words: Word[] }): Word[] {
+  const lastId = line.words.at(-1)!.id;
+  const nextIds = ids(next);
+  const out = words.map((w) =>
+    w.id === lastId ? { ...w, outAt: undefined } : nextIds.has(w.id) ? { ...w, breakBefore: false, keepWithPrev: true } : w,
+  );
+  return pin(out, line.words[0].id, after(words, next));
+}
+
+let seq2 = 0;
+const nid = () => `c${Date.now().toString(36)}${(seq2++).toString(36)}`;
+
+/** Words for a caption's text, spread over [start, end] by length, kept together as one caption. */
+function spread(text: string, start: number, end: number, outAt?: number): Word[] {
+  const parts = text.trim().split(/\s+/).filter(Boolean);
+  const total = parts.reduce((n, p) => n + p.length, 0) || 1;
+  let t = start;
+  return parts.map((p, i) => {
+    const dur = ((end - start) * p.length) / total;
+    const w: Word = { id: nid(), text: p, start: t, end: t + dur, breakBefore: i === 0, keepWithPrev: i > 0 };
+    if (i === parts.length - 1 && outAt !== undefined) w.outAt = outAt;
+    t += dur;
+    return w;
+  });
+}
+
+/** Rewrites a whole caption's text, keeping its timing. Empty text deletes it. */
+export function setCaptionText(words: Word[], line: { words: Word[]; start: number; end: number }, text: string): Word[] {
+  const set = ids(line);
+  const first = words.findIndex((w) => set.has(w.id));
+  if (first < 0) return words;
+  const same = line.words.map((w) => w.text).join(" ");
+  if (text.trim() === same) return words;
+  const lastWordEnd = line.words.at(-1)!.end;
+  const fresh = spread(text, line.start, lastWordEnd, line.words.at(-1)!.outAt);
+  // Keep highlights on words that didn't change.
+  for (const w of fresh) {
+    const old = line.words.find((o) => o.text === w.text && o.emphasis);
+    if (old) w.emphasis = true;
+  }
+  const rest = words.slice(first).filter((w) => !set.has(w.id));
+  // The next caption still starts where it did, even if this one got shorter.
+  if (rest[0]) rest[0] = { ...rest[0], breakBefore: true, keepWithPrev: false };
+  return [...words.slice(0, first), ...fresh, ...rest];
+}
+
+export const deleteCaption = (words: Word[], line: { words: Word[] }) => {
+  const set = ids(line);
+  return pin(words, after(words, line)).filter((w) => !set.has(w.id));
+};
+
+/** Adds a caption at t (in the gap there, up to `dur` seconds). */
+export function insertCaption(words: Word[], t: number, text: string, dur = 1.5): Word[] {
+  const prev = words.filter((w) => w.start <= t).at(-1);
+  // Only into a gap: never inside someone's caption.
+  if (prev && (prev.outAt ?? prev.end + 0.3) > t) return words;
+  const next = words.find((w) => w.start > t);
+  const end = Math.min(t + dur, next?.start ?? t + dur);
+  if (end - t < 0.2) return words;
+  const fresh = spread(text, t, end, end);
+  const i = next ? words.indexOf(next) : words.length;
+  const out = [...words.slice(0, i), ...fresh, ...words.slice(i)];
+  if (next) out[i + fresh.length] = { ...next, breakBefore: true, keepWithPrev: false };
+  return out;
+}
+
+/** Captions from an SRT/VTT file replace the transcript. */
+export function fromCues(cues: { start: number; end: number; text: string }[]): Word[] {
+  return cues.flatMap((c) => spread(c.text, c.start, c.end, c.end));
+}

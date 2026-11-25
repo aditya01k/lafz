@@ -1,47 +1,70 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { deleteWord, editWord, insertAfter, nudge, replaceAll, toggle } from "@/lib/edit";
-import { buildLines, type Line } from "@/lib/lines";
-import { drawCaptions, lineBudget, loadFonts, type Style } from "@/lib/templates";
+import { deleteCaption, fromCues, insertCaption, mergeWithNext, splitAt, trimEdge } from "@/lib/edit";
+import { parseSubtitles, type Line } from "@/lib/lines";
+import { drawCaptions, linesFor, loadFonts, type Box, type Style } from "@/lib/templates";
 import type { Word } from "@/lib/types";
 import { AccountButton } from "./Account";
+import CaptionList from "./editor/CaptionList";
+import { clock } from "./editor/time";
+import Timeline from "./editor/Timeline";
+import Transcript from "./editor/Transcript";
 import ExportDialog from "./ExportDialog";
 import StylePanel from "./StylePanel";
 import type { Project } from "./Studio";
 
-const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
+type Tab = "captions" | "transcript" | "style";
+type Guides = "off" | "safe" | "reels";
+const FRAME = 1 / 30;
 
-export default function Editor({
-  project,
-  onChange,
-  onClose,
-}: {
-  project: Project;
-  onChange: (p: Project) => void;
-  onClose: () => void;
-}) {
+const KEYS: [string, string][] = [
+  ["Space / K", "Play or pause"],
+  ["L / J", "Play faster / step back a second"],
+  ["← →", "Back or forward one frame"],
+  ["⇧ ← →", "Back or forward one second"],
+  ["↑ ↓", "Previous or next caption"],
+  ["I / O", "Set the caption's in or out point to the playhead"],
+  ["⌘K or C", "Split the caption at the playhead"],
+  ["M", "Merge the caption with the next one"],
+  ["N", "Add a caption at the playhead"],
+  ["⌫", "Delete the selected caption"],
+  ["= / −", "Zoom the timeline in or out"],
+  ["\\", "Fit the whole video in the timeline"],
+  ["⌘Z / ⇧⌘Z", "Undo / redo"],
+  ["Esc", "Deselect"],
+];
+
+export default function Editor({ project, onChange, onClose }: { project: Project; onChange: (p: Project) => void; onClose: () => void }) {
   const [words, setWordsRaw] = useState(project.words);
   const [style, setStyle] = useState(project.style);
   const [past, setPast] = useState<Word[][]>([]);
   const [future, setFuture] = useState<Word[][]>([]);
-  const [tab, setTab] = useState<"captions" | "style">("captions");
-  const [selected, setSelected] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("captions");
+  const [selected, setSelected] = useState(-1);
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [time, setTime] = useState(0);
-  // A still of the creator's own video for the style previews.
   const [frame, setFrame] = useState<HTMLCanvasElement | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [zoom, setZoom] = useState(0);
+  const [peaks, setPeaks] = useState<Float32Array | null>(null);
+  const [guides, setGuides] = useState<Guides>("off");
+  const [keysOpen, setKeysOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const [snapX, setSnapX] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const importer = useRef<HTMLInputElement>(null);
 
-  const budget = lineBudget(style);
-  const lines = useMemo(() => buildLines(words, budget.maxWords, budget.maxChars), [words, budget.maxWords, budget.maxChars]);
+  const lines = useMemo(() => linesFor(words, style), [words, style]);
+  const duration = project.duration;
 
   const setWords = useCallback(
     (next: Word[]) => {
-      setPast((p) => [...p.slice(-99), words]);
+      if (next === words) return;
+      setPast((p) => [...p.slice(-199), words]);
       setFuture([]);
       setWordsRaw(next);
     },
@@ -60,36 +83,52 @@ export default function Editor({
     setFuture((f) => f.slice(1));
   }, [future, words]);
 
-  // Save every change so a refresh reopens the same edit.
   useEffect(() => {
     onChange({ ...project, words, style });
   }, [words, style]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const typing = (e.target as HTMLElement)?.closest("input, textarea");
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
-        if (typing) return;
-        e.preventDefault();
-        if (e.shiftKey) redo();
-        else undo();
-      } else if (e.key === " " && !typing) {
-        e.preventDefault();
-        const v = video.current;
-        if (v) void (v.paused ? v.play() : v.pause());
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
+    if (!note) return;
+    const id = setTimeout(() => setNote(""), 2400);
+    return () => clearTimeout(id);
+  }, [note]);
 
-  // Draw the captions over the video every frame.
+  // The audio waveform for the timeline, decoded once from the creator's own file.
+  useEffect(() => {
+    let off = false;
+    void (async () => {
+      try {
+        const ac = new AudioContext();
+        const audio = await ac.decodeAudioData(await project.file.arrayBuffer());
+        void ac.close();
+        const data = audio.getChannelData(0);
+        const per = Math.max(1, Math.floor(audio.sampleRate / 100));
+        const out = new Float32Array(Math.ceil(data.length / per));
+        let top = 0;
+        for (let i = 0; i < out.length; i++) {
+          let m = 0;
+          for (let j = i * per, e = Math.min(data.length, j + per); j < e; j += 4) m = Math.max(m, Math.abs(data[j]));
+          out[i] = m;
+          top = Math.max(top, m);
+        }
+        if (top > 0) for (let i = 0; i < out.length; i++) out[i] = Math.sqrt(out[i] / top);
+        if (!off) setPeaks(out);
+      } catch {
+        // No audio track, or a codec the browser can't decode: the timeline works without it.
+      }
+    })();
+    return () => {
+      off = true;
+    };
+  }, [project.file]);
+
+  // Draw the captions over the video every frame; remember where they sit for dragging.
   const linesRef = useRef<Line[]>(lines);
   const styleRef = useRef<Style>(style);
+  const boxRef = useRef<Box | null>(null);
   useEffect(() => {
     linesRef.current = lines;
     styleRef.current = style;
-    // Fetch the face (and any Indian-script face) this style needs; frames redraw on their own.
     void loadFonts(style, words.map((w) => w.text).join(" "));
   }, [lines, style, words]);
   useEffect(() => {
@@ -100,7 +139,7 @@ export default function Editor({
       if (v && c && c.width) {
         const ctx = c.getContext("2d")!;
         ctx.clearRect(0, 0, c.width, c.height);
-        drawCaptions(ctx, c.width, c.height, v.currentTime, linesRef.current, styleRef.current);
+        boxRef.current = drawCaptions(ctx, c.width, c.height, v.currentTime, linesRef.current, styleRef.current);
         setTime(v.currentTime);
       }
       raf = requestAnimationFrame(tick);
@@ -115,7 +154,6 @@ export default function Editor({
     const c = document.createElement("canvas");
     c.width = 240;
     c.height = 300;
-    // Cover-fit the frame into the 4:5 preview.
     const k = Math.max(c.width / v.videoWidth, c.height / v.videoHeight);
     const w = v.videoWidth * k;
     const h = v.videoHeight * k;
@@ -132,7 +170,7 @@ export default function Editor({
       try {
         if (localStorage.getItem("lafz:share-fixes") === "0") return;
       } catch {}
-      fixes.current.push(...pairs.filter((p) => p.before && p.after && p.before.toLowerCase() !== p.after.toLowerCase()));
+      fixes.current.push(...pairs.filter((p) => p.before && p.after && !/\s/.test(p.after) && p.before.toLowerCase() !== p.after.toLowerCase()));
       if (fixTimer.current) clearTimeout(fixTimer.current);
       fixTimer.current = setTimeout(() => {
         const batch = fixes.current.splice(0, 50);
@@ -148,21 +186,172 @@ export default function Editor({
     [project.language, project.script],
   );
 
-  const seek = (t: number) => {
-    if (video.current) video.current.currentTime = Math.max(0, t + 0.001);
+  const seek = useCallback(
+    (t: number) => {
+      if (video.current) video.current.currentTime = Math.min(duration, Math.max(0, t + 0.001));
+    },
+    [duration],
+  );
+  const toggle = useCallback(() => {
+    const v = video.current;
+    if (!v) return;
+    v.playbackRate = 1;
+    void (v.paused ? v.play() : v.pause());
+  }, []);
+
+  const current = lines.findIndex((l) => time >= l.start && time < l.end);
+  const target = selected >= 0 && selected < lines.length ? selected : current;
+
+  // Caption commands, shared by the toolbar, the panels and the keyboard.
+  const cmd = useMemo(
+    () => ({
+      split: () => {
+        const line = lines[current] ?? (selected >= 0 ? lines[selected] : undefined);
+        const next = line ? splitAt(words, line, time) : words;
+        if (next === words) return setNote(line ? "One word: nothing to split" : "Move the playhead inside a caption to split it");
+        setWords(next);
+        setNote("Split");
+      },
+      add: () => {
+        const next = current >= 0 ? words : insertCaption(words, time, "New caption");
+        if (next === words) return setNote("Move the playhead to a gap between captions");
+        setWords(next);
+        setTab("captions");
+        setSelected(linesFor(next, style).findIndex((l) => Math.abs(l.start - time) < 0.01));
+      },
+      merge: () => {
+        if (target < 0 || target >= lines.length - 1) return;
+        setWords(mergeWithNext(words, lines[target], lines[target + 1]));
+      },
+      remove: () => {
+        if (target < 0) return;
+        setWords(deleteCaption(words, lines[target]));
+        setSelected(-1);
+      },
+      setIn: () => target >= 0 && setWords(trimEdge(words, lines[target], "in", time, lines[target - 1], lines[target + 1])),
+      setOut: () => target >= 0 && setWords(trimEdge(words, lines[target], "out", time, lines[target - 1], lines[target + 1])),
+    }),
+    [words, time, lines, target, current, selected, style, setWords],
+  );
+
+  const zoomBy = useCallback(
+    (k: number) => {
+      const w = window.innerWidth - 48;
+      const base = zoom || w / Math.max(duration, 0.1);
+      const next = Math.min(800, base * k);
+      setZoom(next * duration <= w * 1.01 ? 0 : next);
+    },
+    [zoom, duration],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const typing = (e.target as Element | null)?.closest?.("input, textarea, select, [contenteditable]");
+      const mod = e.metaKey || e.ctrlKey;
+      const v = video.current;
+      if (mod && e.key.toLowerCase() === "z") {
+        if (typing) return;
+        e.preventDefault();
+        return e.shiftKey ? redo() : undo();
+      }
+      if (mod && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        return cmd.split();
+      }
+      if (typing || mod || e.altKey) return;
+      const k = e.key;
+      const handled = () => e.preventDefault();
+      if (k === " " || k === "k" || k === "K") {
+        handled();
+        if (k === " ") toggle();
+        else v?.pause();
+      } else if (k === "l" || k === "L") {
+        handled();
+        if (!v) return;
+        if (v.paused) {
+          v.playbackRate = 1;
+          void v.play();
+        } else v.playbackRate = Math.min(4, v.playbackRate * 2);
+      } else if (k === "j" || k === "J") {
+        handled();
+        v?.pause();
+        seek(time - 1);
+      } else if (k === "ArrowLeft" || k === "ArrowRight") {
+        handled();
+        v?.pause();
+        seek(time + (k === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 1 : FRAME));
+      } else if (k === "ArrowUp" || k === "ArrowDown") {
+        handled();
+        const down = k === "ArrowDown";
+        let i: number;
+        if (target >= 0) i = target + (down ? 1 : -1);
+        else {
+          const after = lines.findIndex((l) => l.start > time);
+          i = down ? (after < 0 ? lines.length - 1 : after) : (after < 0 ? lines.length : after) - 1;
+        }
+        i = Math.min(lines.length - 1, Math.max(0, i));
+        if (lines[i]) {
+          setSelected(i);
+          seek(lines[i].start);
+        }
+      } else if (k === "i" || k === "I") {
+        handled();
+        cmd.setIn();
+      } else if (k === "o" || k === "O") {
+        handled();
+        cmd.setOut();
+      } else if (k === "c" || k === "C") {
+        handled();
+        cmd.split();
+      } else if (k === "m" || k === "M") {
+        handled();
+        cmd.merge();
+      } else if (k === "n" || k === "N") {
+        handled();
+        cmd.add();
+      } else if ((k === "Backspace" || k === "Delete") && selected >= 0) {
+        handled();
+        cmd.remove();
+      } else if (k === "=" || k === "+") {
+        handled();
+        zoomBy(1.6);
+      } else if (k === "-" || k === "_") {
+        handled();
+        zoomBy(1 / 1.6);
+      } else if (k === "\\") {
+        handled();
+        setZoom(0);
+      } else if (k === "Escape") {
+        setSelected(-1);
+        setSelectedWord(null);
+        setKeysOpen(false);
+      } else if (k === "?" || (k === "/" && e.shiftKey)) {
+        setKeysOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo, cmd, toggle, seek, time, lines, target, selected, zoomBy]);
+
+  // Drag the caption around on the video. A click anywhere else plays or pauses.
+  const drag = useRef<{ x0: number; y0: number; sx: number; sy: number; moved: boolean } | null>(null);
+  const inBox = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const c = e.currentTarget;
+    const r = c.getBoundingClientRect();
+    const px = ((e.clientX - r.left) / r.width) * c.width;
+    const py = ((e.clientY - r.top) / r.height) * c.height;
+    const b = boxRef.current;
+    return !!b && px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h;
   };
 
-  const sel = selected ? words.find((w) => w.id === selected) : undefined;
-  const activeLine = lines.findIndex((l) => time >= l.start && time < l.end);
+  const sel = selectedWord ? words.find((w) => w.id === selectedWord) : undefined;
+  const iconBtn = "flex size-9 items-center justify-center rounded-full text-muted hover:bg-white/5 hover:text-foreground disabled:opacity-30";
+  const tool = "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium text-foreground/85 hover:bg-white/10 disabled:opacity-30";
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-hairline px-3 sm:px-4">
-        <button
-          onClick={onClose}
-          title="New video"
-          className="flex size-9 items-center justify-center rounded-full text-muted hover:bg-white/5 hover:text-foreground"
-        >
+      <header className="flex h-14 shrink-0 items-center gap-1.5 border-b border-hairline px-3 sm:px-4">
+        <button onClick={onClose} title="Back to your videos" className={iconBtn}>
           <Icon d="M15 18l-6-6 6-6" />
         </button>
         <span className="text-[16px] font-semibold tracking-tight">
@@ -173,21 +362,37 @@ export default function Editor({
           <span className="shrink-0 rounded-full bg-white/5 px-2 py-0.5 text-[11px]">Saved on this device</span>
         </span>
         <span className="flex-1 sm:hidden" />
-        <AccountButton />
         <button
-          onClick={undo}
-          disabled={!past.length}
-          title="Undo (⌘Z)"
-          className="flex size-9 items-center justify-center rounded-full text-muted hover:bg-white/5 hover:text-foreground disabled:opacity-30"
+          onClick={() => importer.current?.click()}
+          title="Replace captions with an SRT or VTT file"
+          className="hidden h-8 rounded-full px-3 text-[13px] text-muted hover:bg-white/5 hover:text-foreground sm:block"
         >
+          Import SRT
+        </button>
+        <input
+          ref={importer}
+          type="file"
+          accept=".srt,.vtt,text/vtt"
+          className="hidden"
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (!f) return;
+            const cues = parseSubtitles(await f.text());
+            if (!cues.length) return setNote("No captions found in that file");
+            setWords(fromCues(cues));
+            setSelected(-1);
+            setNote(`Imported ${cues.length} captions · ⌘Z to undo`);
+          }}
+        />
+        <button onClick={() => setKeysOpen(true)} title="Keyboard shortcuts (?)" className={`${iconBtn} hidden sm:flex`}>
+          <Icon d="M3 7h18v10H3zM7 11h.01M11 11h.01M15 11h.01M8 14h8" />
+        </button>
+        <AccountButton />
+        <button onClick={undo} disabled={!past.length} title="Undo (⌘Z)" className={iconBtn}>
           <Icon d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3" />
         </button>
-        <button
-          onClick={redo}
-          disabled={!future.length}
-          title="Redo (⇧⌘Z)"
-          className="flex size-9 items-center justify-center rounded-full text-muted hover:bg-white/5 hover:text-foreground disabled:opacity-30"
-        >
+        <button onClick={redo} disabled={!future.length} title="Redo (⇧⌘Z)" className={iconBtn}>
           <Icon d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h3" />
         </button>
         <button
@@ -201,22 +406,21 @@ export default function Editor({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Preview */}
-        <section className="flex min-h-0 flex-col items-center justify-center gap-3 bg-black/40 p-4 lg:flex-1">
+        {/* Program monitor */}
+        <section className="flex min-h-0 flex-col items-center justify-center bg-black/40 p-3 lg:flex-1">
           <div
-            className="relative max-h-[52dvh] max-w-full overflow-hidden rounded-xl bg-black lg:max-h-[calc(100dvh-180px)]"
+            className="relative max-h-[38dvh] max-w-full overflow-hidden rounded-lg bg-black lg:max-h-[calc(100dvh-56px-230px)]"
             style={size ? { aspectRatio: `${size.width} / ${size.height}` } : undefined}
           >
             <video
               ref={video}
               src={project.url}
               playsInline
-              className="block h-full max-h-[52dvh] w-full lg:max-h-[calc(100dvh-180px)]"
+              className="block h-full max-h-[38dvh] w-full lg:max-h-[calc(100dvh-56px-230px)]"
               onLoadedMetadata={(e) => {
                 const v = e.currentTarget;
                 const s = { width: v.videoWidth, height: v.videoHeight };
                 setSize(s);
-                // Preview at most 1080 wide; export uses full size.
                 const k = Math.min(1, 1080 / Math.max(s.width, 1));
                 if (canvas.current) {
                   canvas.current.width = Math.round(s.width * k);
@@ -228,49 +432,101 @@ export default function Editor({
                 setPlaying(false);
                 if (tab === "style") snapFrame();
               }}
-              onClick={(e) => void (e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause())}
             />
-            <canvas ref={canvas} className="pointer-events-none absolute inset-0 h-full w-full" />
+            <canvas
+              ref={canvas}
+              className="absolute inset-0 h-full w-full"
+              onPointerMove={(e) => {
+                const d = drag.current;
+                if (!d) {
+                  e.currentTarget.style.cursor = inBox(e) ? "move" : "pointer";
+                  return;
+                }
+                const r = e.currentTarget.getBoundingClientRect();
+                const dx = (e.clientX - d.x0) / r.width;
+                const dy = (e.clientY - d.y0) / r.height;
+                if (!d.moved && Math.hypot(dx * r.width, dy * r.height) < 3) return;
+                d.moved = true;
+                let x = Math.min(0.9, Math.max(0.1, d.sx + dx));
+                const near = Math.abs(x - 0.5) < 0.015;
+                if (near) x = 0.5;
+                setSnapX(near);
+                setStyle((s) => ({ ...s, x, y: Math.min(0.95, Math.max(0.05, d.sy + dy)) }));
+              }}
+              onPointerDown={(e) => {
+                if (inBox(e)) {
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  drag.current = { x0: e.clientX, y0: e.clientY, sx: style.x ?? 0.5, sy: style.y, moved: false };
+                } else toggle();
+              }}
+              onPointerUp={() => {
+                const d = drag.current;
+                drag.current = null;
+                setSnapX(false);
+                if (d && !d.moved) toggle();
+              }}
+            />
+            {snapX && <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-yellow-300/80" />}
+            {guides === "safe" && (
+              <>
+                <div className="pointer-events-none absolute inset-[5%] rounded border border-dashed border-white/40" />
+                <div className="pointer-events-none absolute inset-[10%] rounded border border-dashed border-white/25" />
+              </>
+            )}
+            {guides === "reels" && (
+              <>
+                <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[9%] items-start border-b border-dashed border-white/60 bg-black/35 p-1.5 text-[10px] font-medium text-white">
+                  Top bar
+                </div>
+                <div className="pointer-events-none absolute right-0 bottom-[20%] flex h-[36%] w-[15%] items-start justify-center border-l border-t border-dashed border-white/60 bg-black/35 pt-1.5 text-[10px] font-medium text-white">
+                  Buttons
+                </div>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-[20%] items-end border-t border-dashed border-white/60 bg-black/35 p-1.5 text-[10px] font-medium text-white">
+                  Name, caption and audio
+                </div>
+              </>
+            )}
           </div>
-          <Timeline
-            lines={lines}
-            duration={project.duration}
-            time={time}
-            playing={playing}
-            onSeek={seek}
-            onToggle={() => {
-              const v = video.current;
-              if (v) void (v.paused ? v.play() : v.pause());
-            }}
-          />
         </section>
 
-        {/* Side panel */}
-        <aside className="flex min-h-0 flex-1 flex-col border-t border-hairline bg-surface lg:w-[400px] lg:flex-none lg:border-l lg:border-t-0">
+        {/* Panels */}
+        <aside className="flex min-h-0 flex-1 flex-col border-t border-hairline bg-surface lg:w-[420px] lg:flex-none lg:border-l lg:border-t-0">
           <div className="flex gap-1 border-b border-hairline p-2">
-            {(["captions", "style"] as const).map((t) => (
+            {(["captions", "transcript", "style"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => {
                   setTab(t);
                   if (t === "style") snapFrame();
                 }}
-                className={`flex-1 rounded-lg py-2 text-[14px] font-medium capitalize ${
-                  tab === t ? "bg-raised text-foreground" : "text-muted"
-                }`}
+                className={`flex-1 rounded-lg py-2 text-[14px] font-medium capitalize ${tab === t ? "bg-raised text-foreground" : "text-muted hover:text-foreground"}`}
               >
                 {t}
               </button>
             ))}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {tab === "captions" ? (
-              <Captions
+            {tab === "captions" && (
+              <CaptionList
                 lines={lines}
-                activeLine={activeLine}
+                words={words}
+                setWords={setWords}
+                selected={selected}
+                onSelect={setSelected}
+                activeLine={current}
+                onSeek={seek}
+                style={style}
+                setStyle={setStyle}
+                onFix={reportFix}
+              />
+            )}
+            {tab === "transcript" && (
+              <Transcript
+                lines={lines}
+                activeLine={current}
                 selected={sel}
                 onSelect={(w) => {
-                  setSelected(w?.id ?? null);
+                  setSelectedWord(w?.id ?? null);
                   if (w) seek(w.start);
                 }}
                 onSeek={seek}
@@ -279,312 +535,113 @@ export default function Editor({
                 setWords={setWords}
                 onFix={reportFix}
               />
-            ) : (
-              <StylePanel style={style} onChange={setStyle} frame={frame} />
             )}
+            {tab === "style" && <StylePanel style={style} onChange={setStyle} frame={frame} />}
           </div>
         </aside>
       </div>
 
-      {exporting && size && (
-        <ExportDialog
-          file={project.file}
-          size={size}
-          duration={project.duration}
+      {/* Transport and timeline */}
+      <footer className="shrink-0 border-t border-hairline bg-surface px-3 pb-3 pt-2">
+        <div className="mb-2 flex items-center gap-1 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&>*]:shrink-0">
+          <button onClick={toggle} className="flex size-8 items-center justify-center rounded-full bg-white text-[12px] text-black" aria-label={playing ? "Pause" : "Play"}>
+            {playing ? "❚❚" : "▶"}
+          </button>
+          <span className="ml-1.5 mr-2 text-[12px] tabular-nums text-muted">
+            <span className="text-foreground">{clock(time)}</span> / {clock(duration)}
+          </span>
+          <span className="mx-1 h-5 w-px bg-hairline" />
+          <button className={tool} onClick={cmd.split} title="Split at playhead (⌘K)">
+            Split
+          </button>
+          <button className={tool} onClick={cmd.add} title="Add a caption at the playhead (N)">
+            Add
+          </button>
+          <button className={tool} onClick={cmd.merge} disabled={target < 0 || target >= lines.length - 1} title="Merge with next (M)">
+            Merge
+          </button>
+          <button className={tool} onClick={cmd.setIn} disabled={target < 0} title="Set in point to playhead (I)">
+            In
+          </button>
+          <button className={tool} onClick={cmd.setOut} disabled={target < 0} title="Set out point to playhead (O)">
+            Out
+          </button>
+          <button className={`${tool} text-red-300`} onClick={cmd.remove} disabled={target < 0} title="Delete caption (⌫)">
+            Delete
+          </button>
+          {note && <span className="ml-2 rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-foreground">{note}</span>}
+          <span className="flex-1" />
+          <div className="flex items-center gap-0.5 rounded-lg border border-hairline p-0.5 text-[11px]">
+            {(["off", "safe", "reels"] as const).map((g) => (
+              <button
+                key={g}
+                onClick={() => setGuides(g)}
+                title={g === "safe" ? "Action and title safe margins" : g === "reels" ? "Where Instagram's buttons and caption sit" : "No guides"}
+                className={`rounded-md px-2 py-1 ${guides === g ? "bg-white/10 text-foreground" : "text-muted hover:text-foreground"}`}
+              >
+                {g === "off" ? "No guides" : g === "safe" ? "Safe margins" : "Reels UI"}
+              </button>
+            ))}
+          </div>
+          <span className="mx-1 h-5 w-px bg-hairline" />
+          <button className={tool} onClick={() => zoomBy(1 / 1.6)} title="Zoom out (−)">
+            −
+          </button>
+          <button className={tool} onClick={() => setZoom(0)} title="Fit (\)">
+            Fit
+          </button>
+          <button className={tool} onClick={() => zoomBy(1.6)} title="Zoom in (=)">
+            +
+          </button>
+        </div>
+        <Timeline
           lines={lines}
           words={words}
-          style={style}
-          onClose={() => setExporting(false)}
-        />
-      )}
-    </div>
-  );
-}
-
-function Timeline({
-  lines,
-  duration,
-  time,
-  playing,
-  onSeek,
-  onToggle,
-}: {
-  lines: Line[];
-  duration: number;
-  time: number;
-  playing: boolean;
-  onSeek: (t: number) => void;
-  onToggle: () => void;
-}) {
-  const bar = useRef<HTMLDivElement>(null);
-  const seekAt = (clientX: number) => {
-    const r = bar.current!.getBoundingClientRect();
-    onSeek(((clientX - r.left) / r.width) * duration);
-  };
-  return (
-    <div className="flex w-full max-w-3xl items-center gap-3">
-      <button
-        onClick={onToggle}
-        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-[13px] text-black"
-        aria-label={playing ? "Pause" : "Play"}
-      >
-        {playing ? "❚❚" : "▶"}
-      </button>
-      <span className="w-12 shrink-0 text-[12px] tabular-nums text-muted">{fmt(time)}</span>
-      <div
-        ref={bar}
-        className="relative h-9 flex-1 cursor-pointer rounded-lg bg-raised"
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          seekAt(e.clientX);
-        }}
-        onPointerMove={(e) => e.buttons && seekAt(e.clientX)}
-      >
-        {lines.map((l, i) => (
-          <div
-            key={i}
-            className="absolute top-2 bottom-2 rounded-[3px] bg-white/25"
-            style={{
-              left: `${(l.start / duration) * 100}%`,
-              width: `max(2px, calc(${((l.end - l.start) / duration) * 100}% - 1px))`,
-            }}
-          />
-        ))}
-        <div className="absolute top-0 bottom-0 w-0.5 bg-accent" style={{ left: `${(time / duration) * 100}%` }} />
-      </div>
-      <span className="w-12 shrink-0 text-right text-[12px] tabular-nums text-muted">{fmt(duration)}</span>
-    </div>
-  );
-}
-
-function Captions({
-  lines,
-  activeLine,
-  selected,
-  onSelect,
-  onSeek,
-  time,
-  words,
-  setWords,
-  onFix,
-}: {
-  lines: Line[];
-  activeLine: number;
-  selected?: Word;
-  onSelect: (w: Word | null) => void;
-  onSeek: (t: number) => void;
-  time: number;
-  words: Word[];
-  setWords: (w: Word[]) => void;
-  onFix: (pairs: { before: string; after: string }[]) => void;
-}) {
-  const [find, setFind] = useState("");
-  const [share, setShare] = useState(true);
-  useEffect(() => {
-    try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reading browser storage after mount
-      setShare(localStorage.getItem("lafz:share-fixes") !== "0");
-    } catch {}
-  }, []);
-  const [repl, setRepl] = useState("");
-  const [note, setNote] = useState("");
-  const activeRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    activeRef.current?.scrollIntoView({ block: "nearest" });
-  }, [activeLine]);
-
-  const matches = find.trim()
-    ? words.filter((w) => w.text.toLowerCase().replace(/[?!.,]+$/, "") === find.trim().toLowerCase()).length
-    : 0;
-
-  return (
-    <div>
-      <div className="sticky top-0 z-10 flex gap-2 border-b border-hairline bg-surface p-3">
-        <input
-          value={find}
-          onChange={(e) => {
-            setFind(e.target.value);
-            setNote("");
+          duration={duration}
+          time={time}
+          peaks={peaks}
+          selected={selected}
+          onSelect={(i) => {
+            setSelected(i);
+            if (tab === "transcript") setTab("captions");
           }}
-          placeholder="Find word"
-          className="min-w-0 flex-1 rounded-lg border border-hairline bg-background px-3 py-2 text-[13px] outline-none focus:border-white/25"
-        />
-        <input
-          value={repl}
-          onChange={(e) => setRepl(e.target.value)}
-          placeholder="Replace with"
-          className="min-w-0 flex-1 rounded-lg border border-hairline bg-background px-3 py-2 text-[13px] outline-none focus:border-white/25"
-        />
-        <button
-          disabled={!matches}
-          onClick={() => {
-            const r = replaceAll(words, find, repl);
-            setWords(r.words);
-            if (r.count && !/\s/.test(repl.trim())) onFix([{ before: find.trim(), after: repl.trim() }]);
-            setNote(`Replaced ${r.count}`);
-            setFind("");
-            setRepl("");
+          onSeek={seek}
+          onLive={setWordsRaw}
+          onCommit={(base) => {
+            setPast((p) => [...p.slice(-199), base]);
+            setFuture([]);
           }}
-          className="shrink-0 rounded-lg bg-raised px-3 text-[13px] font-medium disabled:opacity-40"
-        >
-          {note || (matches ? `Replace ${matches}` : "Replace")}
-        </button>
-      </div>
+          zoom={zoom}
+          setZoom={setZoom}
+        />
+      </footer>
 
-      <div className="space-y-1 p-2">
-        {lines.map((l, i) => {
-          const hasSel = selected && l.words.some((w) => w.id === selected.id);
-          return (
-            <div
-              key={l.words[0].id}
-              ref={i === activeLine ? activeRef : undefined}
-              className={`rounded-xl px-3 py-2.5 ${i === activeLine ? "bg-raised" : ""}`}
-            >
-              <div className="flex items-start gap-3">
-                <button
-                  onClick={() => onSeek(l.start)}
-                  className="mt-[3px] w-10 shrink-0 text-left text-[11px] tabular-nums text-muted hover:text-foreground"
-                >
-                  {fmt(l.start)}
-                </button>
-                <div dir="auto" className="flex flex-wrap gap-x-1 gap-y-0.5 text-[15px] leading-relaxed">
-                  {l.words.map((w) => (
-                    <button
-                      key={w.id}
-                      onClick={() => onSelect(selected?.id === w.id ? null : w)}
-                      className={`rounded px-0.5 ${
-                        selected?.id === w.id
-                          ? "bg-accent text-accent-ink"
-                          : i === activeLine && time >= w.start && time < w.end + 0.08
-                            ? "bg-white/15 text-foreground"
-                            : w.emphasis
-                              ? "text-accent"
-                              : i === activeLine || time < l.start
-                                ? "hover:bg-white/10"
-                                : "text-foreground/60 hover:bg-white/10"
-                      }`}
-                    >
-                      {w.text}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {hasSel && selected && (
-                <WordTools
-                  key={selected.id}
-                  word={selected}
-                  isLineStart={l.words[0].id === selected.id}
-                  onEdit={(text) => {
-                    setWords(editWord(words, selected.id, text));
-                    if (!/\s/.test(text.trim())) onFix([{ before: selected.text, after: text.trim() }]);
-                  }}
-                  onToggle={(k) => setWords(toggle(words, selected.id, k))}
-                  onInsert={(text) => setWords(insertAfter(words, selected.id, text))}
-                  onDelete={() => {
-                    setWords(deleteWord(words, selected.id));
-                    onSelect(null);
-                  }}
-                  onNudge={(d) => setWords(nudge(words, new Set(l.words.map((w) => w.id)), d))}
-                />
-              )}
+      {keysOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setKeysOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl border border-hairline bg-surface p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[16px] font-semibold">Keyboard shortcuts</h2>
+              <button onClick={() => setKeysOpen(false)} className="text-[13px] text-muted hover:text-foreground">
+                Close
+              </button>
             </div>
-          );
-        })}
-      </div>
-      <label className="flex items-start gap-2 border-t border-hairline px-4 py-3 text-[11px] leading-relaxed text-muted">
-        <input
-          type="checkbox"
-          checked={share}
-          onChange={(e) => {
-            setShare(e.target.checked);
-            try {
-              localStorage.setItem("lafz:share-fixes", e.target.checked ? "1" : "0");
-            } catch {}
-          }}
-          className="mt-0.5 accent-[var(--accent)]"
-        />
-        Share my word fixes to help lafz spell better for everyone. Only the corrected words are sent, never your video or audio.
-      </label>
-    </div>
-  );
-}
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px]">
+              {KEYS.map(([k, v]) => (
+                <div key={k} className="contents">
+                  <dt>
+                    <kbd className="rounded-md border border-hairline bg-background px-1.5 py-0.5 font-mono text-[11px]">{k}</kbd>
+                  </dt>
+                  <dd className="text-muted">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
+      )}
 
-function WordTools({
-  word,
-  isLineStart,
-  onEdit,
-  onToggle,
-  onInsert,
-  onDelete,
-  onNudge,
-}: {
-  word: Word;
-  isLineStart: boolean;
-  onEdit: (t: string) => void;
-  onToggle: (k: "emphasis" | "breakBefore") => void;
-  onInsert: (t: string) => void;
-  onDelete: () => void;
-  onNudge: (d: number) => void;
-}) {
-  const [text, setText] = useState(word.text);
-  const [adding, setAdding] = useState("");
-  const btn = "rounded-lg bg-background px-2.5 py-1.5 text-[12px] font-medium hover:bg-white/10";
-  return (
-    <div className="mt-3 space-y-2 rounded-xl border border-hairline bg-background/60 p-3">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (text.trim() !== word.text) onEdit(text);
-        }}
-        className="flex gap-2"
-      >
-        <input
-          autoFocus
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={() => text.trim() !== word.text && onEdit(text)}
-          className="min-w-0 flex-1 rounded-lg border border-hairline bg-surface px-3 py-2 text-[14px] outline-none focus:border-accent"
-        />
-        <button type="submit" className="rounded-lg bg-accent px-3 text-[13px] font-semibold text-accent-ink">
-          Save
-        </button>
-      </form>
-      <div className="flex flex-wrap gap-1.5">
-        <button className={btn} onClick={() => onToggle("emphasis")}>
-          {word.emphasis ? "Unhighlight" : "Highlight"}
-        </button>
-        <button className={btn} onClick={() => onToggle("breakBefore")} disabled={isLineStart && !word.breakBefore}>
-          {word.breakBefore ? "Join previous line" : "New line here"}
-        </button>
-        <button className={btn} onClick={() => onNudge(-0.1)} title="Move this line earlier">
-          Line −0.1s
-        </button>
-        <button className={btn} onClick={() => onNudge(0.1)} title="Move this line later">
-          Line +0.1s
-        </button>
-        <button className={`${btn} text-red-300`} onClick={onDelete}>
-          Delete
-        </button>
-      </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          onInsert(adding);
-          setAdding("");
-        }}
-        className="flex gap-2"
-      >
-        <input
-          value={adding}
-          onChange={(e) => setAdding(e.target.value)}
-          placeholder="Add a word after this one"
-          className="min-w-0 flex-1 rounded-lg border border-hairline bg-surface px-3 py-1.5 text-[13px] outline-none focus:border-white/25"
-        />
-        <button type="submit" disabled={!adding.trim()} className={`${btn} disabled:opacity-40`}>
-          Add
-        </button>
-      </form>
+      {exporting && size && (
+        <ExportDialog file={project.file} size={size} duration={duration} lines={lines} words={words} style={style} onClose={() => setExporting(false)} />
+      )}
     </div>
   );
 }

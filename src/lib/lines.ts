@@ -5,11 +5,22 @@ export type Line = { words: Word[]; start: number; end: number };
 const PAUSE = 0.7;
 const HOLD = 0.35;
 
+/** Caption rules, like Premiere's "Create captions" settings. */
+export type Rules = {
+  maxWords: number;
+  maxChars: number;
+  /** Shortest a caption stays on screen, in seconds. */
+  minDuration?: number;
+  /** Space kept between one caption's end and the next one's start, in seconds. */
+  gap?: number;
+};
+
 /**
- * Groups words into caption lines: a new line on the user's own break, a long
- * pause, the end of a sentence, or when the template's word/character budget is full.
+ * Groups words into captions: a new caption on the user's own break, a long pause, the end of a
+ * sentence, or when the word/character budget is full. Words marked keepWithPrev (captions the
+ * user merged, typed or imported) stay together whatever the rules say.
  */
-export function buildLines(words: Word[], maxWords: number, maxChars: number): Line[] {
+export function buildLines(words: Word[], maxWords: number, maxChars: number, rules: Partial<Rules> = {}): Line[] {
   const lines: Line[] = [];
   let cur: Word[] = [];
   const flush = () => {
@@ -19,23 +30,27 @@ export function buildLines(words: Word[], maxWords: number, maxChars: number): L
   for (const w of words) {
     const prev = cur.at(-1);
     const chars = cur.reduce((n, x) => n + x.text.length + 1, 0) + w.text.length;
-    if (
-      prev &&
-      (w.breakBefore ||
-        cur.length >= maxWords ||
-        chars > maxChars ||
-        w.start - prev.end > PAUSE ||
-        /[.?!]$/.test(prev.text))
-    ) {
-      flush();
-    }
+    const auto = !w.keepWithPrev && (cur.length >= maxWords || chars > maxChars || (prev && w.start - prev.end > PAUSE) || (prev && /[.?!]$/.test(prev.text)));
+    if (prev && (w.breakBefore || prev.outAt !== undefined || auto)) flush();
     cur.push(w);
   }
   flush();
-  // Hold each line until the next starts (short gaps) so captions don't flicker.
+  const gap = rules.gap ?? 0;
+  const minDur = rules.minDuration ?? 0;
   for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     const next = lines[i + 1];
-    lines[i].end = next && next.start - lines[i].end < PAUSE ? next.start : lines[i].end + HOLD;
+    const out = line.words.at(-1)!.outAt;
+    if (out !== undefined) {
+      // A trimmed caption keeps exactly the out point the user set.
+      line.end = out;
+    } else {
+      // Hold each caption until the next starts (short gaps) so captions don't flicker.
+      line.end = next && next.start - line.end < PAUSE ? next.start : line.end + HOLD;
+      line.end = Math.max(line.end, line.start + minDur);
+    }
+    if (next) line.end = Math.min(line.end, next.start - gap);
+    line.end = Math.max(line.end, line.start + 0.05);
   }
   return lines;
 }
@@ -77,4 +92,25 @@ export function toVtt(lines: Line[]): string {
 
 export function toText(words: Word[]): string {
   return words.map((w) => w.text).join(" ").replace(/\s+([?!])/g, "$1");
+}
+
+/** Reads SRT or VTT into cues. Lenient: any "a --> b" line starts a cue. */
+export function parseSubtitles(text: string): { start: number; end: number; text: string }[] {
+  const t = (v: string) => {
+    const m = v.trim().replace(",", ".").match(/(?:(\d+):)?(\d+):(\d+(?:\.\d+)?)/);
+    return m ? Number(m[1] ?? 0) * 3600 + Number(m[2]) * 60 + Number(m[3]) : NaN;
+  };
+  const cues: { start: number; end: number; text: string }[] = [];
+  const blocks = text.replace(/\r/g, "").split(/\n\s*\n/);
+  for (const b of blocks) {
+    const lines = b.split("\n");
+    const i = lines.findIndex((l) => l.includes("-->"));
+    if (i < 0) continue;
+    const [a, z] = lines[i].split("-->");
+    const body = lines.slice(i + 1).join(" ").replace(/<[^>]+>/g, "").trim();
+    const start = t(a);
+    const end = t(z.split(" ").filter(Boolean)[0] ?? z);
+    if (body && Number.isFinite(start) && Number.isFinite(end) && end > start) cues.push({ start, end, text: body });
+  }
+  return cues.sort((x, y) => x.start - y.start);
 }

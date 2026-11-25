@@ -1,7 +1,7 @@
 import { ensureFont, fontMeta, fontStack, isRtl, type FontId } from "./fonts";
 
 import { PRESET_FILES } from "@/presets";
-import { lineAt, type Line } from "./lines";
+import { buildLines, lineAt, type Line } from "./lines";
 import type { Word } from "./types";
 
 /**
@@ -50,7 +50,19 @@ export type Style = {
   animation: "none" | "pop" | "bounce" | "fade" | "slide";
   /** Vertical centre, 0 = top, 1 = bottom. */
   y: number;
+  /** Horizontal centre, 0 = left, 1 = right. */
+  x: number;
+  /** How rows line up with each other. */
+  align: "left" | "center" | "right";
+  /** Widest a row may be, as a share of the frame width. */
+  maxWidth: number;
   wordsPerLine: number;
+  /** Most characters in one caption (0 = from words per line). */
+  maxChars: number;
+  /** Shortest time a caption stays up, in seconds. */
+  minDuration: number;
+  /** Gap kept between captions, in seconds. */
+  gap: number;
   /** One word per row, stacked. */
   stack: boolean;
   emojis: boolean;
@@ -63,7 +75,7 @@ const BASE: Omit<Style, "preset"> = {
   outline: true, outlineColor: "#000000", outlineWidth: 0.16,
   shadow: false, shadowColor: "#000000", shadowBlur: 0.25,
   background: "none", backgroundColor: "#000000", backgroundOpacity: 0.6, radius: 0.2,
-  animation: "pop", y: 0.66, wordsPerLine: 3, stack: false, emojis: false,
+  animation: "pop", y: 0.66, x: 0.5, align: "center", maxWidth: 0.86, wordsPerLine: 3, maxChars: 0, minDuration: 0, gap: 0, stack: false, emojis: false,
 };
 
 export type Template = { id: TemplateId; name: string; blurb: string; credit?: { name: string; url?: string }; style: Style };
@@ -93,8 +105,20 @@ export function normalizeStyle(s: Partial<Style> & { template?: string }): Style
 
 export function lineBudget(style: Style) {
   const words = style.stack ? Math.min(style.wordsPerLine, 3) : style.wordsPerLine;
-  return { maxWords: words, maxChars: Math.max(12, words * 7) };
+  return { maxWords: words, maxChars: style.maxChars > 0 ? style.maxChars : Math.max(12, words * 7) };
 }
+
+/** Everything buildLines needs from a style. */
+export function lineRules(style: Style) {
+  const b = lineBudget(style);
+  return { ...b, minDuration: style.minDuration ?? 0, gap: style.gap ?? 0 };
+}
+
+/** Captions for a style: one place, so preview, demos and export always agree. */
+export const linesFor = (words: Word[], style: Style) => {
+  const r = lineRules(style);
+  return buildLines(words, r.maxWords, r.maxChars, r);
+};
 
 const RAINBOW = ["#ffe600", "#ff4fd8", "#2ee6ff", "#3cff7a", "#ff8a1f"];
 
@@ -124,10 +148,17 @@ function activeIndex(words: Word[], t: number) {
 
 type Placed = { i: number; x: number; y: number; w: number; row: number };
 
-/** Draws whatever caption is on screen at time t. The caller clears or draws the frame first. */
-export function drawCaptions(ctx: Ctx, W: number, H: number, t: number, lines: Line[], s: Style) {
+export type Box = { x: number; y: number; w: number; h: number };
+
+/**
+ * Draws whatever caption is on screen at time t. The caller clears or draws the frame first.
+ * Returns the caption's box (for dragging it on the preview), or null when nothing is up.
+ */
+export function drawCaptions(ctx: Ctx, W: number, H: number, t: number, lines: Line[], style: Style): Box | null {
   const line = lineAt(lines, t);
-  if (!line) return;
+  if (!line) return null;
+  // Styles saved before a field existed get its default.
+  const s: Style = { ...BASE, ...style };
   const ref = Math.min(W, H * 0.75);
   const px = s.size * ref;
   const texts = line.words.map((w) => (s.case === "upper" ? w.text.toUpperCase() : s.case === "lower" ? w.text.toLowerCase() : w.text));
@@ -150,7 +181,7 @@ export function drawCaptions(ctx: Ctx, W: number, H: number, t: number, lines: L
   let rowW = 0;
   widths.forEach((w, i) => {
     const row = rows.at(-1)!;
-    if (row.length && (s.stack || rowW + gap + w > W * 0.86)) {
+    if (row.length && (s.stack || rowW + gap + w > W * s.maxWidth)) {
       rows.push([i]);
       rowW = w;
     } else {
@@ -161,10 +192,15 @@ export function drawCaptions(ctx: Ctx, W: number, H: number, t: number, lines: L
   const rtl = isRtl(all);
   const top = s.y * H - ((rows.length - 1) * lead) / 2;
   const placed: Placed[] = [];
+  const rowW2 = rows.map((row) => row.reduce((sum, i) => sum + widths[i], 0) + gap * (row.length - 1));
+  const blockW = Math.max(...rowW2);
+  // Keep the block inside the frame wherever it's placed.
+  const blockLeft = clamp(s.x * W - blockW / 2, W * 0.02, Math.max(W * 0.02, W * 0.98 - blockW));
   rows.forEach((row, r) => {
     const order = rtl ? [...row].reverse() : row;
-    const total = row.reduce((sum, i) => sum + widths[i], 0) + gap * (row.length - 1);
-    let x = W / 2 - total / 2;
+    const total = rowW2[r];
+    const align = rtl && s.align !== "center" ? (s.align === "left" ? "right" : "left") : s.align;
+    let x = align === "left" ? blockLeft : align === "right" ? blockLeft + blockW - total : blockLeft + (blockW - total) / 2;
     for (const i of order) {
       placed.push({ i, x, y: top + r * lead, w: widths[i], row: r });
       x += widths[i] + gap;
@@ -256,10 +292,11 @@ export function drawCaptions(ctx: Ctx, W: number, H: number, t: number, lines: L
       ctx.font = `${px * 1.3 * k}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
       ctx.textAlign = "center";
       ctx.globalAlpha = 1;
-      ctx.fillText(said.emoji, W / 2, top - px * 1.5);
+      ctx.fillText(said.emoji, blockLeft + blockW / 2, top - px * 1.5);
     }
   }
   ctx.restore();
+  return { x: blockLeft - px * 0.3, y: top - lead / 2, w: blockW + px * 0.6, h: rows.length * lead };
 }
 
 function pill(ctx: Ctx, x: number, y: number, w: number, h: number, r: number, fill: string) {

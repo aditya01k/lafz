@@ -38,7 +38,7 @@ export default function StylePanel({ style, onChange, frame }: { style: Style; o
           {TEMPLATES.map((t) => (
             <button
               key={t.id}
-              onClick={() => onChange({ ...t.style, y: style.y, emojis: style.emojis })}
+              onClick={() => onChange({ ...t.style, x: style.x, y: style.y, align: style.align, emojis: style.emojis, maxChars: style.maxChars, minDuration: style.minDuration, gap: style.gap })}
               className={`rounded-xl p-1 text-left ring-2 transition ${style.preset === t.id ? "ring-accent" : "ring-transparent hover:ring-white/15"}`}
             >
               <StyleLoop style={t.style} text="kya scene hai bhai" background={frame} className="block w-full rounded-lg" />
@@ -72,7 +72,7 @@ export default function StylePanel({ style, onChange, frame }: { style: Style; o
             Save as my style
           </button>
           {changed && (
-            <button onClick={() => onChange({ ...defaultStyle(style.preset), y: style.y })} className="h-8 rounded-full px-3 text-[12px] text-muted hover:text-foreground">
+            <button onClick={() => onChange({ ...defaultStyle(style.preset), x: style.x, y: style.y, align: style.align })} className="h-8 rounded-full px-3 text-[12px] text-muted hover:text-foreground">
               Reset {preset.name}
             </button>
           )}
@@ -157,8 +157,32 @@ export default function StylePanel({ style, onChange, frame }: { style: Style; o
         <Toggle label="Show words only once said" on={style.reveal} onChange={(reveal) => set({ reveal })} />
       </Section>
 
+      <Section title="Position">
+        <div className="flex items-start gap-4">
+          <div className="grid grid-cols-3 gap-1 rounded-lg border border-hairline bg-background p-1" title="Snap to a spot">
+            {[0.18, 0.5, 0.8].flatMap((y) =>
+              [0.25, 0.5, 0.75].map((x) => {
+                const on = Math.abs(style.x - x) < 0.02 && Math.abs(style.y - y) < 0.02;
+                return (
+                  <button
+                    key={`${x}-${y}`}
+                    aria-label={`Place at ${y < 0.4 ? "top" : y < 0.65 ? "middle" : "bottom"} ${x < 0.4 ? "left" : x < 0.6 ? "centre" : "right"}`}
+                    onClick={() => set({ x, y, align: x < 0.4 ? "left" : x > 0.6 ? "right" : "center" })}
+                    className={`size-6 rounded ${on ? "bg-accent" : "bg-white/10 hover:bg-white/25"}`}
+                  />
+                );
+              }),
+            )}
+          </div>
+          <p className="text-[12px] leading-relaxed text-muted">Pick a spot, or drag the caption on the video. Turn on safe margins under the video to keep clear of the app&apos;s buttons.</p>
+        </div>
+        <Slider label="Up and down" value={style.y} min={0.05} max={0.95} step={0.005} show={style.y < 0.4 ? "Top" : style.y < 0.65 ? "Middle" : "Bottom"} onChange={(y) => set({ y })} />
+        <Slider label="Left and right" value={style.x} min={0.1} max={0.9} step={0.005} show={Math.abs(style.x - 0.5) < 0.01 ? "Centre" : `${Math.round((style.x - 0.5) * 200)}`} onChange={(x) => set({ x })} />
+        <Segmented label="Align" value={style.align} options={[["left", "Left"], ["center", "Centre"], ["right", "Right"]]} onChange={(a) => set({ align: a as Style["align"] })} />
+        <Slider label="Text box width" value={style.maxWidth} min={0.3} max={0.96} step={0.01} show={`${Math.round(style.maxWidth * 100)}%`} onChange={(maxWidth) => set({ maxWidth })} />
+      </Section>
+
       <Section title="Layout">
-        <Slider label="Position" value={style.y} min={0.1} max={0.92} step={0.01} show={style.y < 0.4 ? "Top" : style.y < 0.65 ? "Middle" : "Bottom"} onChange={(y) => set({ y })} />
         <Slider label="Words per line" value={style.wordsPerLine} min={1} max={10} step={1} show={String(style.wordsPerLine)} onChange={(wordsPerLine) => set({ wordsPerLine })} />
         <Toggle label="Stack words (one per row)" on={style.stack} onChange={(stack) => set({ stack })} />
         <Toggle label="Emojis" on={style.emojis} onChange={(emojis) => set({ emojis })} />
