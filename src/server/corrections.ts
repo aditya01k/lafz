@@ -3,8 +3,12 @@ import { db } from "./db";
 /**
  * The spelling flywheel: word fixes creators make become preferred spellings once at least
  * MIN_PEOPLE different people made the same fix in the same language and script.
+ *
+ * Only fixes from people who have bought credits count. Accounts are free to make, so
+ * otherwise anyone with a few throwaway emails could teach every user a wrong (or offensive)
+ * spelling; paid accounts make that expensive.
  */
-const MIN_PEOPLE = 2;
+const MIN_PEOPLE = 3;
 const cache = new Map<string, { at: number; list: string[] }>();
 
 export async function saveCorrections(userId: string, language: string, script: string, pairs: { before: string; after: string }[]) {
@@ -29,6 +33,7 @@ export async function communitySpellings(language: string, script: string): Prom
     const { rows } = await db().query<{ before: string; after: string }>(
       `select lower(before) as before, after from corrections
        where language = $1 and script = $2
+         and user_id in (select user_id from credit_ledger where kind = 'topup')
        group by lower(before), after
        having count(distinct user_id) >= $3
        order by count(distinct user_id) desc, count(*) desc
