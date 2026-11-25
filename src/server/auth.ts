@@ -27,8 +27,17 @@ function allowEmail(email: string): boolean {
 function build() {
   const google = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET;
   const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+  // Sign-in is accepted from the site, its www twin and Railway's own address (pages on the
+  // other two redirect to the site, but a tab opened before that still works).
+  const site = siteUrl();
+  const trustedOrigins = [
+    site,
+    site.replace("://", "://www."),
+    ...(process.env.RAILWAY_PUBLIC_DOMAIN ? [`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`] : []),
+  ];
   return betterAuth({
-    baseURL: siteUrl(),
+    baseURL: site,
+    trustedOrigins,
     database: db(),
     // Sign-in links send real email: at most 3 a minute per IP, so nobody can use us to spam an inbox.
     // Railway's edge sets X-Real-IP to the visitor; without it every visitor could share one bucket.

@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LANGUAGES, languageById, type Script } from "@/lib/languages";
-import { PACKS, RUPEES_PER_MINUTE } from "@/lib/pricing";
-import { AccountButton } from "./Account";
+import { PACKS, RUPEES_PER_MINUTE, minutesLabel } from "@/lib/pricing";
+import { AccountButton, useAccount } from "./Account";
 import { HeroDemo, Playground } from "./demo";
 
 /**
@@ -44,7 +44,7 @@ export default function Upload({ onFile, error, working }: { onFile: OnFile; err
 
         <section id="try" className="px-4 pb-24">
           <div className="mx-auto max-w-3xl rounded-[28px] border p-6 sm:p-10" style={{ background: C.card, borderColor: C.line }}>
-            {working ? <Progress {...working} /> : <Dropzone onFile={onFile} error={error} pickRef={pickRef} />}
+            {working ? <Progress {...working} /> : <TryIt onFile={onFile} error={error} pickRef={pickRef} />}
           </div>
         </section>
 
@@ -270,6 +270,60 @@ function Command({ text, dark }: { text: string; dark?: boolean }) {
       <span className="min-w-0 flex-1 truncate text-left">{text.replace("https://", "")}</span>
       <span className="text-[11px] opacity-50 group-hover:opacity-100">{copied ? "Copied" : "Copy"}</span>
     </button>
+  );
+}
+
+/**
+ * Hosted: sign in first, then the upload box (with the balance, and a nudge to add credits at
+ * zero). Self-hosted and local copies have no accounts and go straight to the upload box.
+ */
+function TryIt({ onFile, error, pickRef }: { onFile: OnFile; error?: string; pickRef: React.RefObject<() => void> }) {
+  const { me, openSignIn, openBuy } = useAccount();
+  useEffect(() => {
+    if (me?.billing && !me.user) pickRef.current = openSignIn;
+  }, [me, openSignIn, pickRef]);
+  if (me?.billing && !me.user) {
+    return (
+      <div className="py-4 text-center">
+        <span className="rounded-md border px-2.5 py-1 text-[12px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
+          Get started
+        </span>
+        <h3 className="mt-4 text-[30px] leading-tight font-normal tracking-[-0.03em] sm:text-[38px]">
+          Sign in to <Em>caption your first reel.</Em>
+        </h3>
+        <p className="mx-auto mt-3 max-w-md text-[15px]" style={{ color: C.soft }}>
+          ₹{RUPEES_PER_MINUTE} a minute, prepaid. Your credits and saved styles stay with your account. No password: we email you a link.
+        </p>
+        <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <button onClick={openSignIn} className="h-12 rounded-xl px-6 text-[15px] font-medium text-white" style={{ background: C.maroon }}>
+            Sign in with email
+          </button>
+          <a href="#mac" className="flex h-12 items-center rounded-xl border px-6 text-[15px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
+            Or run it free on your Mac
+          </a>
+        </div>
+      </div>
+    );
+  }
+  const empty = me?.billing && me.user && (me.seconds ?? 0) < 1;
+  return (
+    <>
+      {me?.billing && me.user && (
+        <div
+          className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-[14px]"
+          style={{ background: empty ? "#fff7e0" : "#fff", borderColor: C.line }}
+        >
+          <span>
+            {empty ? "You have no minutes yet." : <>You have <b>{minutesLabel(me.seconds ?? 0)}</b> of captioning.</>}
+            <span style={{ color: C.soft }}> Signed in as {me.user.email}</span>
+          </span>
+          <button onClick={() => openBuy()} className="h-9 rounded-lg px-3.5 text-[13px] font-medium text-white" style={{ background: C.maroon }}>
+            {empty ? `Add credits · from ₹${PACKS[0].rupees}` : "Add credits"}
+          </button>
+        </div>
+      )}
+      <Dropzone onFile={onFile} error={error} pickRef={pickRef} />
+    </>
   );
 }
 
