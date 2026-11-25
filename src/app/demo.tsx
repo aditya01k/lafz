@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { buildLines, type Line } from "@/lib/lines";
-import { TEMPLATES, defaultStyle, drawCaptions, lineBudget, loadFonts, templateById, type Style, type TemplateId } from "@/lib/templates";
+import { LOOKS, TEMPLATES, defaultStyle, drawCaptions, lineBudget, loadFonts, templateById, type Style, type TemplateId } from "@/lib/templates";
 import "./fonts";
 import type { Word } from "@/lib/types";
 
@@ -189,7 +189,7 @@ export function HeroDemo() {
   );
 }
 
-const CARD_PHOTOS = ["platform", "selfie", "lake", "train"];
+const CARD_PHOTOS = ["platform", "selfie", "lake", "train", "sunset", "umbrella"];
 
 /** Type a line, watch it in every style. */
 export function Playground() {
@@ -200,7 +200,7 @@ export function Playground() {
   useEffect(() => {
     CARD_PHOTOS.forEach((p) => photo(p, "card"));
     const words = speak(text || "kuch toh likho", 0.05);
-    data.current = TEMPLATES.map((tpl) => {
+    data.current = LOOKS.map((tpl) => {
       const b = lineBudget(tpl.style);
       void loadFonts(tpl.style, text);
       return { lines: buildLines(words, b.maxWords, b.maxChars), length: words.at(-1)!.end + 0.3 };
@@ -215,7 +215,7 @@ export function Playground() {
       raf = requestAnimationFrame(tick);
       if (now - last < 33) return; // 30 fps is plenty for the small previews
       last = now;
-      TEMPLATES.forEach((tpl, i) => {
+      LOOKS.forEach((tpl, i) => {
         const c = refs.current[i];
         const d = data.current[i];
         if (!c || !d) return;
@@ -224,7 +224,8 @@ export function Playground() {
         const img = photo(CARD_PHOTOS[i % CARD_PHOTOS.length], "card");
         if (img) still(ctx, c.width, c.height, img);
         else backdrop(ctx, c.width, c.height, now / 1000 + i, SCENES[i % SCENES.length].colors);
-        drawCaptions(ctx, c.width, c.height, t, d.lines, { ...tpl.style, y: 0.55, size: tpl.style.size * 1.35 });
+        // Subtitle-style looks keep their low position; the rest sit mid-card so they read.
+        drawCaptions(ctx, c.width, c.height, t, d.lines, { ...tpl.style, y: tpl.style.y > 0.78 ? 0.8 : 0.55, size: tpl.style.size * 1.35 });
       });
     };
     raf = requestAnimationFrame(tick);
@@ -243,7 +244,7 @@ export function Playground() {
         />
       </div>
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {TEMPLATES.map((tpl, i) => (
+        {LOOKS.map((tpl, i) => (
           <figure key={tpl.id}>
             <canvas
               ref={(el) => {
@@ -254,7 +255,8 @@ export function Playground() {
               className="block aspect-[3/4] w-full rounded-2xl shadow-[0_18px_40px_-24px_rgba(29,23,20,0.5)]"
             />
             <figcaption className="mt-2 px-1" title={tpl.blurb}>
-              <span className="text-[14px] font-semibold">{tpl.name}</span>
+              <span className="block text-[14px] font-semibold">{tpl.name}</span>
+              {tpl.bestFor && <span className="block text-[12px] opacity-60">{tpl.bestFor}</span>}
             </figcaption>
           </figure>
         ))}

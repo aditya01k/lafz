@@ -5,6 +5,7 @@ import { useState } from "react";
 import { LANGUAGES } from "@/lib/languages";
 import { PACKS, RUPEES_PER_MINUTE } from "@/lib/pricing";
 import { HeroDemo, Playground } from "./demo";
+import { EditorShowcase } from "./showcase";
 
 /**
  * The landing page. Warm editorial look (cream paper, deep maroon, thin display type with an
@@ -38,12 +39,21 @@ export default function Landing({ accounts }: { accounts: boolean }) {
 
         <StartCta accounts={accounts} />
 
-        <section id="styles" className="border-t px-4 py-24" style={{ borderColor: C.line }}>
+        <ProEditor />
+
+        <section id="templates" className="border-t px-4 py-24" style={{ borderColor: C.line }}>
           <div className="mx-auto max-w-6xl">
-            <Head kicker="Styles" title={<>Type a line. <Em>See it</Em> in every style.</>} sub="Four looks to start from, 30 trending fonts, or upload your own. Every colour, outline, highlight and animation is yours to change." />
+            <Head
+              kicker="Templates"
+              title={<>Not an editor? <Em>Pick a look.</Em></>}
+              sub="Simple mode is twelve ready looks, each shown on your own video. Choose one, set the size and place, export. Type a line below to try them."
+            />
             <div className="mt-12">
               <Playground />
             </div>
+            <p className="mt-8 text-center text-[14px]" style={{ color: C.soft }}>
+              Want more control? Every template opens in Pro with 30 fonts, your own uploads, and every colour, outline and animation setting.
+            </p>
           </div>
         </section>
 
@@ -89,7 +99,8 @@ function Nav({ accounts }: { accounts: boolean }) {
         <Logo />
         <nav className="hidden gap-6 text-[14px] md:flex" style={{ color: C.soft }}>
           <a href="#mac" className="hover:text-black">Run on Mac</a>
-          <a href="#styles" className="hover:text-black">Styles</a>
+          <a href="#editor" className="hover:text-black">Editor</a>
+          <a href="#templates" className="hover:text-black">Templates</a>
           <a href="#languages" className="hover:text-black">Languages</a>
           <a href="#open-source" className="hover:text-black">Open source</a>
           <a href="#pricing" className="hover:text-black">Pricing</a>
@@ -184,7 +195,7 @@ function Hero() {
         </div>
         <div className="order-3 space-y-4 lg:justify-self-start">
           <Floating dark title="Wi-Fi off. Still captioning." body="Whisper and the spelling model run on your Mac's own chip." />
-          <Floating title="Export anything" body="MP4 · Transparent · Green screen · SRT" />
+          <Floating title="Pro or Simple" body="Frame-accurate timeline, or 12 one-click templates." />
         </div>
       </div>
     </section>
@@ -293,6 +304,43 @@ function StartCta({ accounts }: { accounts: boolean }) {
           <Link href="/app" className="flex h-12 items-center rounded-xl border px-6 text-[15px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
             Open the app online
           </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const PRO = [
+  { title: "Frame-accurate timecode", body: "HH:MM:SS:FF at your footage's real frame rate. Every trim lands on a frame." },
+  { title: "A real caption timeline", body: "Waveform, zoom, drag to move, drag edges to trim, snapping to the playhead and neighbours." },
+  { title: "Quality checks", body: "Reading speed, flash frames, overlong captions, character limits and flicker gaps, flagged as you work." },
+  { title: "Bulk and sync tools", body: "Shift-click a run to merge, nudge or delete. Slip every caption by a few frames to fix sync. Close gaps in one go." },
+  { title: "Built for the keyboard", body: "J K L, I and O, ⌘K to split, M to merge, arrows by frame, Tab to the next caption, ⌘Z for everything." },
+  { title: "Into your edit", body: "SRT for Premiere, Resolve and Final Cut caption tracks, or a transparent PNG sequence of the styled captions at your frame rate." },
+];
+
+/** The Pro editor, running live, for the editors this is built for. */
+function ProEditor() {
+  return (
+    <section id="editor" className="border-t px-4 py-24" style={{ borderColor: C.line }}>
+      <div className="mx-auto max-w-6xl">
+        <Head
+          kicker="Pro editor"
+          title={<>Edit captions like <Em>you edit video.</Em></>}
+          sub="A caption editor made for people who live in Premiere and Resolve. This one is running on a real reel, right now."
+        />
+        <div className="mx-auto mt-12 max-w-5xl">
+          <EditorShowcase />
+        </div>
+        <div className="mx-auto mt-14 grid max-w-5xl gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+          {PRO.map((f) => (
+            <div key={f.title} className="border-t pt-5" style={{ borderColor: C.line }}>
+              <h3 className="text-[16px] font-medium">{f.title}</h3>
+              <p className="mt-1.5 text-[14px] leading-relaxed" style={{ color: C.soft }}>
+                {f.body}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -499,7 +547,7 @@ function Pricing() {
             <div className="mt-4 text-[56px] leading-none font-light tracking-[-0.05em]">₹0</div>
             <p className="mt-2 text-[14px]" style={{ color: C.soft }}>Open source, forever</p>
             <ul className="mt-6 space-y-2.5 text-[15px]">
-              {["Every feature and style", "All 11 languages", "Unlimited videos, no watermark", "Offline on a Mac, or your own API keys"].map((x) => (
+              {["Pro editor and all 12 templates", "All 11 languages", "Unlimited videos, no watermark", "Offline on a Mac, or your own API keys"].map((x) => (
                 <Check key={x}>{x}</Check>
               ))}
             </ul>
