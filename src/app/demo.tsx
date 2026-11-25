@@ -86,63 +86,103 @@ function still(ctx: CanvasRenderingContext2D, W: number, H: number, img: HTMLIma
   ctx.fillRect(0, 0, W, H);
 }
 
-/** The hero phone: every language, every style, drawn live by the real renderer. */
+/**
+ * The hero phone: the creator's own reel playing, captioned live by the real renderer from the
+ * real pipeline's words (public/reels/demo.json), one of the four styles per loop.
+ */
+const DEMO_STYLES = ["typewriter", "headline", "editorial", "marker"];
+
 export function HeroDemo() {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [scene, setScene] = useState(0);
+  const video = useRef<HTMLVideoElement>(null);
+  const [styleIdx, setStyleIdx] = useState(0);
+  const [muted, setMuted] = useState(true);
 
   useEffect(() => {
-    // Start every still loading now, so no scene flashes the fallback gradient.
-    SCENES.forEach((sc) => photo(sc.photo, "tall"));
-    const prepared = SCENES.map((s) => {
-      const words = speak(s.text, 0.35);
-      const style: Style = { ...defaultStyle(s.template), y: 0.62 };
-      style.size *= 1.25;
-      const b = lineBudget(style);
-      void loadFonts(style, s.text);
-      return {
-        ...s,
-        lines: buildLines(words, b.maxWords, b.maxChars),
-        style,
-        length: words.at(-1)!.end + 1.1,
-      };
-    });
+    let words: Word[] = [];
     let raf = 0;
     let idx = 0;
-    let t0 = performance.now();
-    const tick = (now: number) => {
+    let last = 0;
+    let alive = true;
+    const prepare = () =>
+      DEMO_STYLES.map((id) => {
+        const style: Style = { ...defaultStyle(id) };
+        style.size *= 1.15;
+        const b = lineBudget(style);
+        void loadFonts(style, words.map((w) => w.text).join(" "));
+        return { style, lines: buildLines(words, b.maxWords, b.maxChars) };
+      });
+    let looks = prepare();
+    void fetch("/reels/demo.json")
+      .then((r) => r.json())
+      .then((w: Word[]) => {
+        if (!alive) return;
+        words = w;
+        looks = prepare();
+      })
+      .catch(() => {});
+    const tick = () => {
       const c = canvas.current;
-      if (c) {
+      const v = video.current;
+      if (c && v) {
         const ctx = c.getContext("2d")!;
-        const cur = prepared[idx];
-        let t = (now - t0) / 1000;
-        if (t > cur.length) {
-          idx = (idx + 1) % prepared.length;
-          setScene(idx);
-          t0 = now;
-          t = 0;
+        ctx.clearRect(0, 0, c.width, c.height);
+        const t = v.currentTime;
+        // Next style each time the clip loops back to the start.
+        if (t + 0.25 < last) {
+          idx = (idx + 1) % looks.length;
+          setStyleIdx(idx);
         }
-        const img = photo(prepared[idx].photo, "tall");
-        if (img) still(ctx, c.width, c.height, img);
-        else backdrop(ctx, c.width, c.height, now / 1000, prepared[idx].colors);
-        drawCaptions(ctx, c.width, c.height, t, prepared[idx].lines, prepared[idx].style);
+        last = t;
+        drawCaptions(ctx, c.width, c.height, t, looks[idx].lines, looks[idx].style);
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // Some browsers ignore autoPlay until asked again; muted inline video is always allowed.
+    void video.current?.play().catch(() => {});
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
-  const s = SCENES[scene];
-  const tpl = templateById(s.template);
+  const tpl = templateById(DEMO_STYLES[styleIdx]);
   return (
     <div className="relative mx-auto w-[min(300px,72vw)]">
-      <div className="rounded-[44px] border border-white/10 bg-black p-2.5 shadow-[0_40px_120px_-20px_rgba(255,197,49,0.25)]">
-        <canvas ref={canvas} width={540} height={960} className="block aspect-[9/16] w-full rounded-[34px]" />
+      <div className="rounded-[44px] border border-white/10 bg-black p-2.5 shadow-[0_40px_120px_-20px_rgba(58,21,21,0.45)]">
+        <div className="relative aspect-[9/16] w-full overflow-hidden rounded-[34px] bg-black">
+          <video
+            ref={video}
+            src="/reels/demo.mp4"
+            poster="/reels/demo-poster.jpg"
+            autoPlay
+            muted={muted}
+            loop
+            playsInline
+            preload="auto"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <canvas ref={canvas} width={540} height={960} className="pointer-events-none absolute inset-0 h-full w-full" />
+          <button
+            onClick={() => {
+              setMuted((m) => !m);
+              void video.current?.play();
+            }}
+            className="absolute top-4 right-4 flex size-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur"
+            aria-label={muted ? "Turn sound on" : "Mute"}
+          >
+            {muted ? (
+              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6" /></svg>
+            ) : (
+              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14" /></svg>
+            )}
+          </button>
+        </div>
       </div>
       <div className="absolute -bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 whitespace-nowrap rounded-full border border-white/10 bg-[#1d1714] px-3.5 py-1.5 text-[12px] font-medium text-white">
         <span className="size-1.5 rounded-full bg-accent" />
-        {s.lang}
+        Captioned by lafz
         <span className="text-white/55">· {tpl.name}</span>
       </div>
     </div>
