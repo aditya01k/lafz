@@ -123,6 +123,31 @@ export default function Editor({
     setFrame(c);
   }, []);
 
+  // Word fixes teach lafz better spellings (hosted only, words only, creators can opt out).
+  const fixes = useRef<{ before: string; after: string }[]>([]);
+  const fixTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reportFix = useCallback(
+    (pairs: { before: string; after: string }[]) => {
+      if (!project.language || !project.script) return;
+      try {
+        if (localStorage.getItem("lafz:share-fixes") === "0") return;
+      } catch {}
+      fixes.current.push(...pairs.filter((p) => p.before && p.after && p.before.toLowerCase() !== p.after.toLowerCase()));
+      if (fixTimer.current) clearTimeout(fixTimer.current);
+      fixTimer.current = setTimeout(() => {
+        const batch = fixes.current.splice(0, 50);
+        if (!batch.length) return;
+        void fetch("/api/corrections", {
+          method: "POST",
+          keepalive: true,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ language: project.language, script: project.script, pairs: batch }),
+        }).catch(() => {});
+      }, 4000);
+    },
+    [project.language, project.script],
+  );
+
   const seek = (t: number) => {
     if (video.current) video.current.currentTime = Math.max(0, t + 0.001);
   };
@@ -252,6 +277,7 @@ export default function Editor({
                 time={time}
                 words={words}
                 setWords={setWords}
+                onFix={reportFix}
               />
             ) : (
               <StylePanel style={style} onChange={setStyle} frame={frame} />
@@ -340,6 +366,7 @@ function Captions({
   time,
   words,
   setWords,
+  onFix,
 }: {
   lines: Line[];
   activeLine: number;
@@ -349,8 +376,16 @@ function Captions({
   time: number;
   words: Word[];
   setWords: (w: Word[]) => void;
+  onFix: (pairs: { before: string; after: string }[]) => void;
 }) {
   const [find, setFind] = useState("");
+  const [share, setShare] = useState(true);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reading browser storage after mount
+      setShare(localStorage.getItem("lafz:share-fixes") !== "0");
+    } catch {}
+  }, []);
   const [repl, setRepl] = useState("");
   const [note, setNote] = useState("");
   const activeRef = useRef<HTMLDivElement>(null);
@@ -386,6 +421,7 @@ function Captions({
           onClick={() => {
             const r = replaceAll(words, find, repl);
             setWords(r.words);
+            if (r.count && !/\s/.test(repl.trim())) onFix([{ before: find.trim(), after: repl.trim() }]);
             setNote(`Replaced ${r.count}`);
             setFind("");
             setRepl("");
@@ -439,7 +475,10 @@ function Captions({
                   key={selected.id}
                   word={selected}
                   isLineStart={l.words[0].id === selected.id}
-                  onEdit={(text) => setWords(editWord(words, selected.id, text))}
+                  onEdit={(text) => {
+                    setWords(editWord(words, selected.id, text));
+                    if (!/\s/.test(text.trim())) onFix([{ before: selected.text, after: text.trim() }]);
+                  }}
                   onToggle={(k) => setWords(toggle(words, selected.id, k))}
                   onInsert={(text) => setWords(insertAfter(words, selected.id, text))}
                   onDelete={() => {
@@ -453,6 +492,20 @@ function Captions({
           );
         })}
       </div>
+      <label className="flex items-start gap-2 border-t border-hairline px-4 py-3 text-[11px] leading-relaxed text-muted">
+        <input
+          type="checkbox"
+          checked={share}
+          onChange={(e) => {
+            setShare(e.target.checked);
+            try {
+              localStorage.setItem("lafz:share-fixes", e.target.checked ? "1" : "0");
+            } catch {}
+          }}
+          className="mt-0.5 accent-[var(--accent)]"
+        />
+        Share my word fixes to help lafz spell better for everyone. Only the corrected words are sent, never your video or audio.
+      </label>
     </div>
   );
 }

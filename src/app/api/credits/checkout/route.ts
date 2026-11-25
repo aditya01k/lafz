@@ -30,7 +30,9 @@ export async function POST(request: Request) {
       product_cart: [{ product_id: await productFor(pack), quantity: 1 }],
       customer: { customer_id: customerId },
       metadata: { user_id: user.id, pack: pack.id },
-      feature_flags: { allow_discount_code: true },
+      // Off: discount codes on this Dodo account would apply here too, so a code made for
+      // another product could hand out free credits.
+      feature_flags: { allow_discount_code: false },
       return_url: `${siteUrl()}/?paid=${pack.id}`,
     });
     await db().query("insert into checkouts (session_id, user_id, pack) values ($1, $2, $3)", [session.session_id, user.id, pack.id]);

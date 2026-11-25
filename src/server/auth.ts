@@ -1,10 +1,24 @@
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { headers } from "next/headers";
 import { Resend } from "resend";
 import { siteUrl } from "@/lib/site";
 import { db } from "./db";
+
+// Sign-in links per address: at most 3 in 15 minutes, whatever IP asks, so nobody can
+// email-bomb someone's inbox through us.
+const sentTo = new Map<string, number[]>();
+function allowEmail(email: string): boolean {
+  const now = Date.now();
+  const key = email.trim().toLowerCase();
+  const recent = (sentTo.get(key) ?? []).filter((t) => now - t < 15 * 60 * 1000);
+  if (recent.length >= 3) return false;
+  sentTo.set(key, [...recent, now]);
+  if (sentTo.size > 10_000) sentTo.clear();
+  return true;
+}
 
 /**
  * Hosted sign-in (Better Auth on Postgres): Google, or a link by email sent with Resend.
@@ -17,6 +31,8 @@ function build() {
     baseURL: siteUrl(),
     database: db(),
     // Sign-in links send real email: at most 3 a minute per IP, so nobody can use us to spam an inbox.
+    // Railway's edge sets X-Real-IP to the visitor; without it every visitor could share one bucket.
+    advanced: { ipAddress: { ipAddressHeaders: ["x-real-ip", "x-forwarded-for"] } },
     rateLimit: {
       enabled: true,
       window: 60,
@@ -30,6 +46,9 @@ function build() {
       magicLink({
         expiresIn: 15 * 60,
         sendMagicLink: async ({ email, url }) => {
+          if (!allowEmail(email)) {
+            throw new APIError("TOO_MANY_REQUESTS", { message: "Too many sign-in links for this email. Try again in 15 minutes." });
+          }
           if (!resend) {
             // Without Resend (local development) the link goes to the server log.
             if (process.env.NODE_ENV === "development") return console.log(`[auth] sign-in link for ${email}: ${url}`);

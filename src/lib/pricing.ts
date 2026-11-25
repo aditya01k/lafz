@@ -1,7 +1,5 @@
 /**
- * Hosted pricing: prepaid credits, counted in seconds of video, ₹4 a minute (set 2026-11-25 to
- * undercut Kalakar's Editor plan, ~₹5/min list). Costs about ₹1.64/min (Sarvam, Whisper, the
- * spelling pass, with GST); about ₹2.9/min is kept after GST and Dodo's fee, so ~₹1.3/min margin.
+ * Hosted pricing: prepaid credits, counted in seconds of video, ₹4 a minute.
  * Credits never expire. Self-hosted copies don't use any of this.
  *
  * Pack ids name their minutes: a Dodo product is made per id, so a new price needs new ids.

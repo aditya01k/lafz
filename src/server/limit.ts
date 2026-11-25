@@ -1,10 +1,21 @@
 /**
- * Until accounts exist, transcription is free and open, so cap what one IP can
- * spend: 20 minutes of audio an hour. In memory, so it resets on deploy; good
- * enough for one instance.
+ * Abuse limits for transcription, per signed-in user (or IP when there are no accounts):
+ * one job at a time, and at most 60 minutes of audio an hour, refunds included, so failing
+ * jobs can't be looped to burn paid APIs. In memory: resets on deploy, fine for one instance.
  */
 const WINDOW_MS = 60 * 60 * 1000;
-const MAX_SECONDS = 20 * 60;
+const MAX_SECONDS = 60 * 60;
+const running = new Set<string>();
+
+export function startJob(who: string): boolean {
+  if (running.has(who)) return false;
+  running.add(who);
+  return true;
+}
+
+export function endJob(who: string) {
+  running.delete(who);
+}
 const used = new Map<string, { since: number; seconds: number }>();
 
 export function clientIp(req: Request): string {

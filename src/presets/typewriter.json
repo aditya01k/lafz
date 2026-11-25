@@ -1,0 +1,23 @@
+{
+  "id": "typewriter",
+  "name": "Typewriter",
+  "blurb": "SF Pro italic, words land as they're said",
+  "credit": {
+    "name": "Aditya Sharma"
+  },
+  "style": {
+    "outline": false,
+    "shadow": true,
+    "shadowColor": "#00000073",
+    "shadowBlur": 0.32,
+    "highlight": "none",
+    "font": "sfpro",
+    "weight": 700,
+    "italic": true,
+    "size": 0.052,
+    "reveal": true,
+    "wordsPerLine": 4,
+    "animation": "fade",
+    "y": 0.64
+  }
+}

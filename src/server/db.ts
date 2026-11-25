@@ -35,6 +35,19 @@ create table if not exists checkouts (
   created_at timestamptz not null default now()
 );
 
+-- Word fixes creators make in the editor (only the words: never audio or video). When enough
+-- different people make the same fix, it becomes a preferred spelling for that language.
+create table if not exists corrections (
+  id bigserial primary key,
+  user_id text not null references "user"(id) on delete cascade,
+  language text not null,
+  script text not null,
+  before text not null,
+  after text not null,
+  at timestamptz not null default now()
+);
+create index if not exists corrections_lang on corrections (language, script, lower(before));
+
 -- Small key/value settings, e.g. the Dodo product made for each credit pack.
 create table if not exists settings (
   key text primary key,

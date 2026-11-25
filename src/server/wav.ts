@@ -5,6 +5,23 @@
 export const RATE = 16000;
 const HEADER = 44;
 
+/**
+ * Accepts only what the browser sends: RIFF/WAVE, PCM (format 1), mono, 16 kHz, 16-bit, with the
+ * data chunk where we expect it. Anything else could hide far more audio than its size suggests
+ * (8-bit, low sample rates, compressed codecs) and run up paid API costs.
+ */
+export function isOurWav(wav: Uint8Array): boolean {
+  if (wav.byteLength < HEADER + 2) return false;
+  const v = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
+  const tag = (o: number) => String.fromCharCode(wav[o], wav[o + 1], wav[o + 2], wav[o + 3]);
+  return (
+    tag(0) === "RIFF" && tag(8) === "WAVE" && tag(12) === "fmt " && tag(36) === "data" &&
+    v.getUint32(16, true) === 16 && v.getUint16(20, true) === 1 && v.getUint16(22, true) === 1 &&
+    v.getUint32(24, true) === RATE && v.getUint16(34, true) === 16 &&
+    v.getUint32(40, true) === wav.byteLength - HEADER
+  );
+}
+
 export function wavDuration(wav: Uint8Array): number {
   return (wav.byteLength - HEADER) / 2 / RATE;
 }

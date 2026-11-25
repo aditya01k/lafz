@@ -20,6 +20,9 @@ export type Project = {
   style: Style;
   duration: number;
   key: string;
+  /** What it was captioned in (older saved projects don't have these). */
+  language?: string;
+  script?: "latin" | "native";
 };
 
 type Phase =
@@ -73,7 +76,7 @@ export default function Studio() {
       if (!res.ok) throw new Error(json.error ?? "Transcription failed.");
       if (json.seconds !== undefined) account.setSeconds(json.seconds);
       if (!json.words.length) throw new Error("We couldn't hear any speech in this video.");
-      const project: Project = { file, url, key, words: json.words, style: defaultStyle(), duration };
+      const project: Project = { file, url, key, words: json.words, style: defaultStyle(), duration, language: opts.language, script: opts.script };
       save(project);
       setPhase({ kind: "edit", project });
     } catch (err) {
@@ -103,11 +106,11 @@ export default function Studio() {
   );
 }
 
-function readSaved(key: string): Pick<Project, "words" | "style" | "duration"> | null {
+function readSaved(key: string): Pick<Project, "words" | "style" | "duration" | "language" | "script"> | null {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
-    const saved = JSON.parse(raw) as Pick<Project, "words" | "style" | "duration">;
+    const saved = JSON.parse(raw) as Pick<Project, "words" | "style" | "duration" | "language" | "script">;
     return { ...saved, style: normalizeStyle(saved.style) };
   } catch {
     return null;
@@ -116,7 +119,7 @@ function readSaved(key: string): Pick<Project, "words" | "style" | "duration"> |
 
 function save(p: Project) {
   try {
-    localStorage.setItem(p.key, JSON.stringify({ words: p.words, style: p.style, duration: p.duration }));
+    localStorage.setItem(p.key, JSON.stringify({ words: p.words, style: p.style, duration: p.duration, language: p.language, script: p.script }));
   } catch {
     // Storage full or blocked: the edit still works, it just won't survive a refresh.
   }

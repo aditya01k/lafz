@@ -24,6 +24,13 @@ cp .env.example .env.local   # add OPENAI_API_KEY and SARVAM_API_KEY
 pnpm dev                     # http://localhost:3300
 ```
 
+Or with Docker:
+
+```bash
+docker build -f docker/Dockerfile -t lafz .
+docker run -p 3000:3000 --env-file .env.local lafz
+```
+
 Export needs a browser with WebCodecs (Chrome, Edge, Safari 17+). Transparent export needs VP9 alpha encoding, which Chrome has.
 
 ## Layout
@@ -42,6 +49,11 @@ Export needs a browser with WebCodecs (Chrome, Edge, Safari 17+). Transparent ex
 Set `DATABASE_URL` and `BETTER_AUTH_SECRET` and the app turns on sign-in (email link or Google) and prepaid credits: ₹4 per minute of video, sold in packs through Dodo Payments (`src/lib/pricing.ts`). Credits are a ledger in Postgres (`src/server/credits.ts`); a transcription is charged up front and refunded if it fails. Tables are created on boot. Point Dodo's webhook at `/api/dodo/webhook`.
 
 Leave those unset and every feature is free with no sign-in, which is what you want on your own machine.
+
+## Contributing
+
+Add a caption style (one JSON file, credited to you), improve a language, or benchmark accuracy:
+see [CONTRIBUTING.md](CONTRIBUTING.md). Found a security issue? See [SECURITY.md](SECURITY.md).
 
 ## License
 

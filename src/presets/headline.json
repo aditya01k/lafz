@@ -1,0 +1,22 @@
+{
+  "id": "headline",
+  "name": "Headline",
+  "blurb": "Anton, stacked tight like a title card",
+  "credit": {
+    "name": "Aditya Sharma"
+  },
+  "style": {
+    "outline": false,
+    "shadow": true,
+    "shadowColor": "#00000073",
+    "shadowBlur": 0.25,
+    "highlight": "none",
+    "font": "anton",
+    "weight": 400,
+    "size": 0.13,
+    "stack": true,
+    "wordsPerLine": 2,
+    "animation": "none",
+    "y": 0.5
+  }
+}

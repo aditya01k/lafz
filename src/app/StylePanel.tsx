@@ -43,6 +43,7 @@ export default function StylePanel({ style, onChange, frame }: { style: Style; o
             >
               <StyleLoop style={t.style} text="kya scene hai bhai" background={frame} className="block w-full rounded-lg" />
               <div className="px-1 pt-1.5 pb-0.5 text-[12px] font-medium">{t.name}</div>
+              {t.credit && <div className="truncate px-1 pb-0.5 text-[11px] text-muted">by {t.credit.name}</div>}
             </button>
           ))}
         </div>

@@ -105,12 +105,20 @@ export async function sarvamWords(
   script: Script,
 ): Promise<TimedWord[]> {
   const pieces = splitIntoPieces(timing);
-  const results = await Promise.all(
-    pieces.map(async (p) => {
-      const text = await sarvamText(sliceWav(wav, p.start - PAD, p.end + PAD), key, language, script);
-      const tokens = text.split(/\s+/).filter(Boolean);
-      // An empty answer for a piece Whisper heard keeps Whisper's words.
-      return tokens.length ? mapOntoTiming(tokens, p.words) : p.words;
+  // Never more pieces than the audio can hold, and at most 4 requests in flight.
+  if (pieces.length > Math.ceil((wav.byteLength / 32000) / 15) + 2) throw new Error("Too many pieces for this audio");
+  const results: TimedWord[][] = new Array(pieces.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(4, pieces.length) }, async () => {
+      while (next < pieces.length) {
+        const i = next++;
+        const p = pieces[i];
+        const text = await sarvamText(sliceWav(wav, p.start - PAD, p.end + PAD), key, language, script);
+        const tokens = text.split(/\s+/).filter(Boolean);
+        // An empty answer for a piece Whisper heard keeps Whisper's words.
+        results[i] = tokens.length ? mapOntoTiming(tokens, p.words) : p.words;
+      }
     }),
   );
   return results.flat();

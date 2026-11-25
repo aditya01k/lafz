@@ -1,0 +1,22 @@
+{
+  "id": "marker",
+  "name": "Marker",
+  "blurb": "Hand-drawn, the spoken word in yellow",
+  "credit": {
+    "name": "Aditya Sharma"
+  },
+  "style": {
+    "outline": false,
+    "shadow": true,
+    "shadowColor": "#00000073",
+    "shadowBlur": 0.32,
+    "highlight": "color",
+    "highlightColor": "#ffe14d",
+    "font": "permanentMarker",
+    "weight": 400,
+    "size": 0.062,
+    "wordsPerLine": 3,
+    "animation": "none",
+    "y": 0.66
+  }
+}

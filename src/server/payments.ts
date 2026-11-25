@@ -1,4 +1,4 @@
-import { packById, type Pack } from "@/lib/pricing";
+import { PACKS, packById, type Pack } from "@/lib/pricing";
 import { topUp } from "./credits";
 import { db } from "./db";
 
@@ -7,6 +7,9 @@ import { db } from "./db";
  * Dodo business sells other things too, and their payments reach this webhook: those aren't ours.
  */
 export async function packForProduct(productId: string): Promise<Pack | undefined> {
+  // Products pinned in the environment (DODO_PRODUCT_M50 …), then ones lafz created itself.
+  const pinned = PACKS.find((p) => process.env[`DODO_PRODUCT_${p.id.toUpperCase()}`] === productId);
+  if (pinned) return pinned;
   const { rows } = await db().query<{ key: string }>("select key from settings where key like 'dodo_product:%' and value = $1", [productId]);
   return rows[0] ? packById(rows[0].key.split(":").at(-1) ?? "") : undefined;
 }

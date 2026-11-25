@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import type { Language, Script } from "@/lib/languages";
+import { communitySpellings } from "./corrections";
 import type { TimedWord } from "./whisper";
 
 let client: OpenAI | undefined;
@@ -55,6 +56,9 @@ export async function cleanSpelling(
 ): Promise<(TimedWord & { emoji?: string })[]> {
   if (!words.length) return [];
   client ??= new OpenAI();
+  // Spellings creators have taught lafz for this language, from their own word fixes.
+  const learned = await communitySpellings(language.id, script);
+  if (learned.length) dictionary = [...dictionary, ...learned];
   const out: (TimedWord & { emoji?: string })[] = [];
   for (let i = 0; i < words.length; i += BATCH) {
     const batch = words.slice(i, i + BATCH);
@@ -77,7 +81,7 @@ function thinEmojis<T extends { emoji?: string }>(words: T[]): T[] {
 
 async function cleanBatch(batch: TimedWord[], dictionary: string[], language: Language, script: Script) {
   const dict = dictionary.length
-    ? `\n\nThe creator's own spellings, always use these exactly: ${dictionary.join(", ")}`
+    ? `\n\nPreferred spellings (names, brands, and fixes creators made; "a → b" means write b for a), always use them: ${dictionary.join(", ")}`
     : "";
   try {
     const response = await client!.responses.parse({

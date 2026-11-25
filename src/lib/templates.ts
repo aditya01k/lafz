@@ -1,5 +1,6 @@
 import { ensureFont, fontMeta, fontStack, isRtl, type FontId } from "./fonts";
 
+import { PRESET_FILES } from "@/presets";
 import { lineAt, type Line } from "./lines";
 import type { Word } from "./types";
 
@@ -9,7 +10,7 @@ import type { Word } from "./types";
  * editor can change any field.
  */
 
-export type TemplateId = "typewriter" | "headline" | "editorial" | "marker";
+export type TemplateId = string;
 
 export type Style = {
   preset: TemplateId;
@@ -65,33 +66,16 @@ const BASE: Omit<Style, "preset"> = {
   animation: "pop", y: 0.66, wordsPerLine: 3, stack: false, emojis: false,
 };
 
-export type Template = { id: TemplateId; name: string; blurb: string; style: Style };
+export type Template = { id: TemplateId; name: string; blurb: string; credit?: { name: string; url?: string }; style: Style };
 
-const t = (id: TemplateId, name: string, blurb: string, s: Partial<Style>): Template => ({
-  id, name, blurb, style: { ...BASE, ...s, preset: id },
-});
-
-// Exactly the four looks the creator picked, styled after their own edited reels: small,
-// clean type, soft drop shadows, no thick outlines, no bouncy pop. Editorial is set in
-// Editor's Note (licensed: a close free face stands in until the creator's copy is uploaded).
-const SOFT = { outline: false, shadow: true, shadowColor: "#00000073", shadowBlur: 0.32, highlight: "none" as const };
-
-export const TEMPLATES: Template[] = [
-  // "is getting enough sleep": SF Pro Bold Italic, one clean line, words land as spoken.
-  t("typewriter", "Typewriter", "SF Pro italic, words land as they're said", {
-    ...SOFT, font: "sfpro", weight: 700, italic: true, size: 0.052, reveal: true, wordsPerLine: 4, animation: "fade", y: 0.64,
-  }),
-  // "28 States / 28 Days": heavy condensed, stacked tight, white.
-  t("headline", "Headline", "Anton, stacked tight like a title card", {
-    ...SOFT, font: "anton", weight: 400, size: 0.13, stack: true, wordsPerLine: 2, shadowBlur: 0.25, animation: "none", y: 0.5,
-  }),
-  t("editorial", "Editorial", "Editor's Note italic, quiet and elegant", {
-    ...SOFT, font: "editorsNote", weight: 400, italic: true, size: 0.072, wordsPerLine: 4, animation: "fade", y: 0.66,
-  }),
-  t("marker", "Marker", "Hand-drawn, the spoken word in yellow", {
-    ...SOFT, font: "permanentMarker", weight: 400, size: 0.062, highlight: "color", highlightColor: "#ffe14d", wordsPerLine: 3, animation: "none", y: 0.66,
-  }),
-];
+// Presets live as JSON files in src/presets/ so anyone can contribute one (credited to them).
+export const TEMPLATES: Template[] = PRESET_FILES.map((f) => ({
+  id: f.id,
+  name: f.name,
+  blurb: f.blurb,
+  credit: f.credit,
+  style: { ...BASE, ...(f.style as Partial<Style>), preset: f.id },
+}));
 
 export const templateById = (id: string) => TEMPLATES.find((x) => x.id === id) ?? TEMPLATES[0];
 

@@ -1,0 +1,22 @@
+{
+  "id": "editorial",
+  "name": "Editorial",
+  "blurb": "Editor's Note italic, quiet and elegant",
+  "credit": {
+    "name": "Aditya Sharma"
+  },
+  "style": {
+    "outline": false,
+    "shadow": true,
+    "shadowColor": "#00000073",
+    "shadowBlur": 0.32,
+    "highlight": "none",
+    "font": "editorsNote",
+    "weight": 400,
+    "italic": true,
+    "size": 0.072,
+    "wordsPerLine": 4,
+    "animation": "fade",
+    "y": 0.66
+  }
+}
