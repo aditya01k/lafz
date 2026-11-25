@@ -21,15 +21,15 @@ export function speak(text: string, at = 0): Word[] {
     });
 }
 
-type Scene = { lang: string; text: string; template: TemplateId; colors: [string, string, string] };
+type Scene = { lang: string; text: string; template: TemplateId; colors: [string, string, string]; photo: string };
 
 const SCENES: Scene[] = [
-  { lang: "Hindi · English letters", text: "bhai yeh jagah ekdum mast hai", template: "headline", colors: ["#ff7a45", "#7a1f5c", "#1b0f2e"] },
-  { lang: "Hindi · Hindi script", text: "आज हम गोवा जा रहे हैं", template: "editorial", colors: ["#1fb5a8", "#164a7a", "#0b1426"] },
-  { lang: "Tamil · English letters", text: "machi idhu semma place da", template: "typewriter", colors: ["#ffb347", "#c2410c", "#2a0f06"] },
-  { lang: "Punjabi · English letters", text: "oye chak de phatte yaar", template: "marker", colors: ["#9b5cff", "#2d1b69", "#0d0820"] },
-  { lang: "Bengali · English letters", text: "ki darun jayga re", template: "editorial", colors: ["#2563eb", "#0f1f4d", "#05070f"] },
-  { lang: "Marathi · English letters", text: "lai bhari", template: "headline", colors: ["#22c55e", "#14532d", "#04130a"] },
+  { lang: "Hindi · English letters", text: "bhai yeh jagah ekdum mast hai", template: "headline", colors: ["#ff7a45", "#7a1f5c", "#1b0f2e"], photo: "selfie" },
+  { lang: "Hindi · Hindi script", text: "आज हम गोवा जा रहे हैं", template: "editorial", colors: ["#1fb5a8", "#164a7a", "#0b1426"], photo: "lake" },
+  { lang: "Tamil · English letters", text: "machi idhu semma place da", template: "typewriter", colors: ["#ffb347", "#c2410c", "#2a0f06"], photo: "platform" },
+  { lang: "Punjabi · English letters", text: "oye chak de phatte yaar", template: "marker", colors: ["#9b5cff", "#2d1b69", "#0d0820"], photo: "train" },
+  { lang: "Bengali · English letters", text: "ki darun jayga re", template: "editorial", colors: ["#2563eb", "#0f1f4d", "#05070f"], photo: "sunset" },
+  { lang: "Marathi · English letters", text: "lai bhari", template: "headline", colors: ["#22c55e", "#14532d", "#04130a"], photo: "umbrella" },
 ];
 
 function backdrop(ctx: CanvasRenderingContext2D, W: number, H: number, t: number, c: [string, string, string]) {
@@ -58,12 +58,42 @@ function backdrop(ctx: CanvasRenderingContext2D, W: number, H: number, t: number
   ctx.fillRect(0, 0, W, H);
 }
 
+// Stills from the creator's own reel (the top of each shot, above where their captions sat).
+const photos = new Map<string, HTMLImageElement>();
+function photo(name: string, kind: "tall" | "card"): HTMLImageElement | null {
+  if (typeof Image === "undefined") return null;
+  const key = `${name}-${kind}`;
+  let img = photos.get(key);
+  if (!img) {
+    img = new Image();
+    img.src = `/reels/${key}.jpg`;
+    photos.set(key, img);
+  }
+  return img.complete && img.naturalWidth ? img : null;
+}
+
+/** Draws a still, cover-fit, with a soft vignette so white captions read on bright skies. */
+function still(ctx: CanvasRenderingContext2D, W: number, H: number, img: HTMLImageElement) {
+  const k = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+  const w = img.naturalWidth * k;
+  const h = img.naturalHeight * k;
+  ctx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, "rgba(0,0,0,0.05)");
+  g.addColorStop(0.5, "rgba(0,0,0,0.12)");
+  g.addColorStop(1, "rgba(0,0,0,0.35)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
 /** The hero phone: every language, every style, drawn live by the real renderer. */
 export function HeroDemo() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [scene, setScene] = useState(0);
 
   useEffect(() => {
+    // Start every still loading now, so no scene flashes the fallback gradient.
+    SCENES.forEach((sc) => photo(sc.photo, "tall"));
     const prepared = SCENES.map((s) => {
       const words = speak(s.text, 0.35);
       const style: Style = { ...defaultStyle(s.template), y: 0.62 };
@@ -92,7 +122,9 @@ export function HeroDemo() {
           t0 = now;
           t = 0;
         }
-        backdrop(ctx, c.width, c.height, now / 1000, prepared[idx].colors);
+        const img = photo(prepared[idx].photo, "tall");
+        if (img) still(ctx, c.width, c.height, img);
+        else backdrop(ctx, c.width, c.height, now / 1000, prepared[idx].colors);
         drawCaptions(ctx, c.width, c.height, t, prepared[idx].lines, prepared[idx].style);
       }
       raf = requestAnimationFrame(tick);
@@ -117,6 +149,8 @@ export function HeroDemo() {
   );
 }
 
+const CARD_PHOTOS = ["platform", "selfie", "lake", "train"];
+
 /** Type a line, watch it in every style. */
 export function Playground() {
   const [text, setText] = useState("bhai yeh jagah ekdum mast hai");
@@ -124,6 +158,7 @@ export function Playground() {
   const data = useRef<{ lines: Line[]; length: number }[]>([]);
 
   useEffect(() => {
+    CARD_PHOTOS.forEach((p) => photo(p, "card"));
     const words = speak(text || "kuch toh likho", 0.05);
     data.current = TEMPLATES.map((tpl) => {
       const b = lineBudget(tpl.style);
@@ -146,7 +181,9 @@ export function Playground() {
         if (!c || !d) return;
         const ctx = c.getContext("2d")!;
         const t = ((now - start) / 1000) % d.length;
-        backdrop(ctx, c.width, c.height, now / 1000 + i, SCENES[i % SCENES.length].colors);
+        const img = photo(CARD_PHOTOS[i % CARD_PHOTOS.length], "card");
+        if (img) still(ctx, c.width, c.height, img);
+        else backdrop(ctx, c.width, c.height, now / 1000 + i, SCENES[i % SCENES.length].colors);
         drawCaptions(ctx, c.width, c.height, t, d.lines, { ...tpl.style, y: 0.55, size: tpl.style.size * 1.35 });
       });
     };
