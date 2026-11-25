@@ -30,6 +30,8 @@ export default function Editor({
   const [exporting, setExporting] = useState(false);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
   const [time, setTime] = useState(0);
+  // A still of the creator's own video for the style previews.
+  const [frame, setFrame] = useState<HTMLCanvasElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -105,6 +107,20 @@ export default function Editor({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const snapFrame = useCallback(() => {
+    const v = video.current;
+    if (!v?.videoWidth) return;
+    const c = document.createElement("canvas");
+    c.width = 240;
+    c.height = 300;
+    // Cover-fit the frame into the 4:5 preview.
+    const k = Math.max(c.width / v.videoWidth, c.height / v.videoHeight);
+    const w = v.videoWidth * k;
+    const h = v.videoHeight * k;
+    c.getContext("2d")!.drawImage(v, (c.width - w) / 2, (c.height - h) / 2, w, h);
+    setFrame(c);
   }, []);
 
   const seek = (t: number) => {
@@ -183,7 +199,10 @@ export default function Editor({
                 }
               }}
               onPlay={() => setPlaying(true)}
-              onPause={() => setPlaying(false)}
+              onPause={() => {
+                setPlaying(false);
+                if (tab === "style") snapFrame();
+              }}
               onClick={(e) => void (e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause())}
             />
             <canvas ref={canvas} className="pointer-events-none absolute inset-0 h-full w-full" />
@@ -207,7 +226,10 @@ export default function Editor({
             {(["captions", "style"] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => {
+                  setTab(t);
+                  if (t === "style") snapFrame();
+                }}
                 className={`flex-1 rounded-lg py-2 text-[14px] font-medium capitalize ${
                   tab === t ? "bg-raised text-foreground" : "text-muted"
                 }`}
@@ -232,7 +254,7 @@ export default function Editor({
                 setWords={setWords}
               />
             ) : (
-              <StylePanel style={style} onChange={setStyle} />
+              <StylePanel style={style} onChange={setStyle} frame={frame} />
             )}
           </div>
         </aside>

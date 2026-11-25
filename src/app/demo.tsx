@@ -187,7 +187,18 @@ export function Playground() {
 }
 
 /** A style looping a sample line: the editor's preset picker and live preview cards. */
-export function StyleLoop({ style, text, className }: { style: Style; text: string; className?: string }) {
+export function StyleLoop({
+  style,
+  text,
+  className,
+  background,
+}: {
+  style: Style;
+  text: string;
+  className?: string;
+  /** A still from the creator's own video; falls back to a soft gradient. */
+  background?: CanvasImageSource | null;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const words = speak(text, 0.05);
@@ -207,11 +218,12 @@ export function StyleLoop({ style, text, className }: { style: Style; text: stri
       const c = ref.current;
       if (!c) return;
       const ctx = c.getContext("2d")!;
-      backdrop(ctx, c.width, c.height, now / 1000, colors);
+      if (background) ctx.drawImage(background, 0, 0, c.width, c.height);
+      else backdrop(ctx, c.width, c.height, now / 1000, colors);
       drawCaptions(ctx, c.width, c.height, ((now - start) / 1000) % length, lines, s);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [style, text]);
+  }, [style, text, background]);
   return <canvas ref={ref} width={240} height={300} className={className} />;
 }

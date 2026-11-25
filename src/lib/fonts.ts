@@ -73,6 +73,7 @@ FONT_FAMILIES.astonScript = `"Aston Script", cursive`;
 const LICENSED: { id: FontId; match: RegExp }[] = [
   { id: "editorsNote", match: /editor.?s?.?note/i },
   { id: "astonScript", match: /aston/i },
+  { id: "sfpro", match: /sf.?pro/i },
 ];
 const licensedFallback: Record<string, string> = {};
 
@@ -133,37 +134,73 @@ function idb(): Promise<IDBDatabase> {
   });
 }
 
-async function addFace(name: string, data: ArrayBuffer) {
-  const family = `lafz-custom-${name.replace(/[^a-z0-9]+/gi, "-")}`;
-  const face = new FontFace(family, data);
+const WEIGHTS: [RegExp, number][] = [
+  [/hairline|thin/i, 100], [/ultra.?light|extra.?light/i, 200], [/light/i, 300], [/medium/i, 500],
+  [/semi.?bold|demi.?bold/i, 600], [/extra.?bold|ultra.?bold|heavy/i, 800], [/black/i, 900], [/bold/i, 700],
+];
+
+/** Reads weight, italic and the family from a file name like "SF-Pro-Display-SemiboldItalic". */
+function describe(fileName: string) {
+  const base = fileName.replace(/\.(ttf|otf|woff2?)$/i, "");
+  const weight = WEIGHTS.find(([re]) => re.test(base))?.[1] ?? 400;
+  const italic = /italic|oblique/i.test(base);
+  const family = base
+    .replace(/[-_ ]?(hairline|thin|ultra.?light|extra.?light|light|regular|book|medium|semi.?bold|demi.?bold|extra.?bold|ultra.?bold|heavy|black|bold|italic|oblique)/gi, "")
+    .replace(/[-_]+/g, " ")
+    .trim();
+  return { weight, italic, family: family || base };
+}
+
+async function addFace(fileName: string, data: ArrayBuffer): Promise<FontId> {
+  const { weight, italic, family } = describe(fileName);
+  const licensed = LICENSED.find((l) => l.match.test(family));
+  const id = licensed ? licensed.id : `custom:${family}`;
+  // One CSS family per font, so each uploaded weight/italic file becomes a face of it.
+  const css = `lafz-${id.replace(/[^a-z0-9]+/gi, "-")}`;
+  const face = new FontFace(css, data, { weight: String(weight), style: italic ? "italic" : "normal" });
   await face.load();
   document.fonts.add(face);
-  const licensed = LICENSED.find((l) => l.match.test(name));
   if (licensed) {
-    // The real Editor's Note / Aston Script: lead that font's stack with it.
-    licensedFallback[licensed.id] ??= FONT_FAMILIES[licensed.id];
-    FONT_FAMILIES[licensed.id] = `'${family}', ${licensedFallback[licensed.id]}`;
-    fontMeta(licensed.id).kind = undefined;
-    return licensed.id;
+    // The real SF Pro / Editor's Note / Aston Script: lead that font's stack with it.
+    licensedFallback[id] ??= FONT_FAMILIES[id];
+    FONT_FAMILIES[id] = `'${css}', ${licensedFallback[id]}`;
+    const meta = fontMeta(id);
+    meta.kind = undefined;
+    meta.weights = [...new Set([...(meta.weights ?? []), weight])].sort((x, y) => x - y);
+    if (italic) meta.italic = true;
+    return id;
   }
-  const id = `custom:${name}`;
-  FONT_FAMILIES[id] = `'${family}'`;
-  if (!FONTS.some((f) => f.id === id)) FONTS.unshift({ id, name, group: "Your fonts", weights: [400], kind: "custom" });
+  FONT_FAMILIES[id] = `'${css}'`;
+  const existing = FONTS.find((f) => f.id === id);
+  if (existing) {
+    existing.weights = [...new Set([...existing.weights, weight])].sort((x, y) => x - y);
+    if (italic) existing.italic = true;
+  } else {
+    FONTS.unshift({ id, name: family, group: "Your fonts", weights: [weight], italic, kind: "custom" });
+  }
   return id;
 }
 
-/** Adds an uploaded .ttf/.otf/.woff/.woff2 and remembers it for next time. Returns its font id. */
-export async function uploadFont(file: File): Promise<FontId> {
-  const name = file.name.replace(/\.(ttf|otf|woff2?)$/i, "").replace(/[-_]+/g, " ").trim() || "My font";
-  const data = await file.arrayBuffer();
-  const id = await addFace(name, data);
-  try {
-    const db = await idb();
-    db.transaction("fonts", "readwrite").objectStore("fonts").put({ name, data });
-  } catch {
-    // Not saved for next time (private mode); it still works in this session.
+/**
+ * Adds uploaded .ttf/.otf/.woff/.woff2 files and remembers them in this browser. Several files
+ * of one family (Regular, Bold, Italic…) become one font with those weights. Returns the font
+ * id of the first file.
+ */
+export async function uploadFonts(files: File[]): Promise<FontId> {
+  let first: FontId | null = null;
+  for (const file of files) {
+    const data = await file.arrayBuffer();
+    const id = await addFace(file.name, data);
+    first ??= id;
+    try {
+      const db = await idb();
+      db.transaction("fonts", "readwrite").objectStore("fonts").put({ name: file.name, data });
+    } catch {
+      // Not saved for next time (private mode); it still works in this session.
+    }
   }
-  return id;
+  if (!first) throw new Error("No font files");
+  return first;
 }
 
 let restored: Promise<void> | null = null;

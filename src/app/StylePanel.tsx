@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FONTS, FONT_FAMILIES, fontMeta, restoreCustomFonts, uploadFont, type FontId } from "@/lib/fonts";
+import { FONTS, FONT_FAMILIES, fontMeta, restoreCustomFonts, uploadFonts, type FontId } from "@/lib/fonts";
 import { TEMPLATES, defaultStyle, templateById, type Style } from "@/lib/templates";
 import { StyleLoop } from "./demo";
 
@@ -12,7 +12,7 @@ const SWATCHES = ["#ffffff", "#000000", "#ffe600", "#ffc531", "#ff5a36", "#ff4fd
  * The full style editor. A preset sets every field; after that, any field can be changed,
  * and the result can be saved as one of "your styles" for the next video.
  */
-export default function StylePanel({ style, onChange }: { style: Style; onChange: (s: Style) => void }) {
+export default function StylePanel({ style, onChange, frame }: { style: Style; onChange: (s: Style) => void; frame?: CanvasImageSource | null }) {
   const set = (patch: Partial<Style>) => onChange({ ...style, ...patch });
   const [mine, setMine] = useState<{ name: string; style: Style }[]>([]);
   useEffect(() => {
@@ -34,14 +34,14 @@ export default function StylePanel({ style, onChange }: { style: Style; onChange
   return (
     <div className="pb-10">
       <Section title="Presets">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {TEMPLATES.map((t) => (
             <button
               key={t.id}
               onClick={() => onChange({ ...t.style, y: style.y, emojis: style.emojis })}
               className={`rounded-xl p-1 text-left ring-2 transition ${style.preset === t.id ? "ring-accent" : "ring-transparent hover:ring-white/15"}`}
             >
-              <StyleLoop style={t.style} text="kya scene hai bhai" className="block w-full rounded-lg" />
+              <StyleLoop style={t.style} text="kya scene hai bhai" background={frame} className="block w-full rounded-lg" />
               <div className="px-1 pt-1.5 pb-0.5 text-[12px] font-medium">{t.name}</div>
             </button>
           ))}
@@ -201,6 +201,27 @@ function FontPicker({ value, onChange }: { value: FontId; onChange: (f: FontId) 
   }, [open]);
   return (
     <div ref={box} className="relative">
+      <input
+        ref={file}
+        type="file"
+        multiple
+        accept=".ttf,.otf,.woff,.woff2"
+        className="hidden"
+        onChange={async (e) => {
+          const files = [...(e.target.files ?? [])];
+          e.target.value = "";
+          if (!files.length) return;
+          setUploadError("");
+          try {
+            const id = await uploadFonts(files);
+            setVersion((v) => v + 1);
+            onChange(id);
+            setOpen(false);
+          } catch {
+            setUploadError("Some files aren't fonts this browser can read. Use .ttf, .otf or .woff2.");
+          }
+        }}
+      />
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex h-11 w-full items-center justify-between rounded-xl border border-hairline bg-black px-3.5 hover:border-white/25"
@@ -210,6 +231,17 @@ function FontPicker({ value, onChange }: { value: FontId; onChange: (f: FontId) 
         </span>
         <span className="text-[12px] text-muted">Change</span>
       </button>
+      <button
+        onClick={() => file.current?.click()}
+        className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 text-[13px] hover:border-white/40"
+      >
+        <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 16V4M7 9l5-5 5 5M4 20h16" /></svg>
+        Upload fonts
+      </button>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-muted">
+        SF Pro, Editor&apos;s Note, Aston Script or any .ttf / .otf / .woff2. Pick all the weights at once. They stay in this browser.
+      </p>
+      {uploadError && <p className="mt-1.5 text-[12px] text-red-300">{uploadError}</p>}
       {open && (
         <div className="absolute inset-x-0 top-12 z-30 max-h-[420px] overflow-y-auto rounded-xl border border-hairline bg-surface p-2 shadow-2xl">
           <input
@@ -241,38 +273,10 @@ function FontPicker({ value, onChange }: { value: FontId; onChange: (f: FontId) 
               ))}
             </div>
           ))}
-          <div className="border-t border-hairline px-2 pt-3 pb-1">
-            <button
-              onClick={() => file.current?.click()}
-              className="h-9 w-full rounded-lg border border-dashed border-white/20 text-[13px] hover:border-white/40"
-            >
-              Upload your own font
-            </button>
-            <input
-              ref={file}
-              type="file"
-              accept=".ttf,.otf,.woff,.woff2"
-              className="hidden"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                if (!f) return;
-                setUploadError("");
-                try {
-                  const id = await uploadFont(f);
-                  setVersion((v) => v + 1);
-                  onChange(id);
-                  setOpen(false);
-                } catch {
-                  setUploadError("That file isn't a font this browser can read. Try .ttf, .otf or .woff2.");
-                }
-              }}
-            />
-            {uploadError && <p className="mt-2 text-[12px] text-red-300">{uploadError}</p>}
-            <p className="mt-2 text-[11px] leading-relaxed text-muted">
-              Have Editor&apos;s Note or Aston Script? Upload the file and it replaces the stand-in everywhere. Fonts stay in this browser. SF Pro and Times New Roman
-              use your device&apos;s own copy. Hindi, Tamil and other scripts get a matching Baloo face automatically.
-            </p>
-          </div>
+          <p className="border-t border-hairline px-2 pt-3 pb-1 text-[11px] leading-relaxed text-muted">
+            &ldquo;upload yours&rdquo; fonts are paid fonts we can&apos;t include: a close free face stands in until you upload
+            your copy. Hindi, Tamil and other scripts get a matching Baloo face automatically.
+          </p>
         </div>
       )}
     </div>

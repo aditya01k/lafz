@@ -71,22 +71,25 @@ const t = (id: TemplateId, name: string, blurb: string, s: Partial<Style>): Temp
   id, name, blurb, style: { ...BASE, ...s, preset: id },
 });
 
-// Exactly the four looks the creator picked. Editorial is set in Editor's Note (a licensed font:
-// the closest free face stands in until the creator uploads their copy).
+// Exactly the four looks the creator picked, styled after their own edited reels: small,
+// clean type, soft drop shadows, no thick outlines, no bouncy pop. Editorial is set in
+// Editor's Note (licensed: a close free face stands in until the creator's copy is uploaded).
+const SOFT = { outline: false, shadow: true, shadowColor: "#00000073", shadowBlur: 0.32, highlight: "none" as const };
+
 export const TEMPLATES: Template[] = [
-  t("typewriter", "Typewriter", "Words appear as they're spoken", {
-    font: "sfpro", weight: 600, size: 0.05, highlight: "none", reveal: true, outline: false, background: "word",
-    backgroundOpacity: 0.78, radius: 0.12, wordsPerLine: 6, animation: "fade", y: 0.74,
+  // "is getting enough sleep": SF Pro Bold Italic, one clean line, words land as spoken.
+  t("typewriter", "Typewriter", "SF Pro italic, words land as they're said", {
+    ...SOFT, font: "sfpro", weight: 700, italic: true, size: 0.052, reveal: true, wordsPerLine: 4, animation: "fade", y: 0.64,
   }),
-  t("headline", "Headline", "Two huge words, stacked", {
-    font: "anton", weight: 400, size: 0.13, case: "upper", stack: true, wordsPerLine: 2, highlightScope: "current", y: 0.6,
+  // "28 States / 28 Days": heavy condensed, stacked tight, white.
+  t("headline", "Headline", "Anton, stacked tight like a title card", {
+    ...SOFT, font: "anton", weight: 400, size: 0.13, stack: true, wordsPerLine: 2, shadowBlur: 0.25, animation: "none", y: 0.5,
   }),
-  t("editorial", "Editorial", "Elegant italic serif", {
-    font: "editorsNote", weight: 400, italic: true, size: 0.075, highlight: "none", dim: 0.5, outline: false, shadow: true,
-    shadowColor: "#00000080", shadowBlur: 0.35, wordsPerLine: 4, animation: "fade", y: 0.7,
+  t("editorial", "Editorial", "Editor's Note italic, quiet and elegant", {
+    ...SOFT, font: "editorsNote", weight: 400, italic: true, size: 0.072, wordsPerLine: 4, animation: "fade", y: 0.66,
   }),
-  t("marker", "Marker", "Hand-drawn, casual vlog energy", {
-    font: "permanentMarker", weight: 400, size: 0.072, highlightColor: "#ffe600", outlineWidth: 0.12, wordsPerLine: 3, animation: "bounce", y: 0.68,
+  t("marker", "Marker", "Hand-drawn, the spoken word in yellow", {
+    ...SOFT, font: "permanentMarker", weight: 400, size: 0.062, highlight: "color", highlightColor: "#ffe14d", wordsPerLine: 3, animation: "none", y: 0.66,
   }),
 ];
 
@@ -242,7 +245,8 @@ export function drawCaptions(ctx: Ctx, W: number, H: number, t: number, lines: L
     if (s.shadow && !boxed) {
       ctx.shadowColor = s.shadowColor;
       ctx.shadowBlur = s.shadowBlur * px;
-      ctx.shadowOffsetY = s.shadowColor.startsWith("#00000") ? px * 0.05 : 0;
+      // Dark shadows drop slightly; coloured ones (glows) stay centred.
+      ctx.shadowOffsetY = /^#0{6}/i.test(s.shadowColor) ? px * 0.06 : 0;
     }
     if (s.outline && !boxed) {
       ctx.strokeStyle = s.outlineColor;
