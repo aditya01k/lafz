@@ -13,15 +13,20 @@ export type ScriptFontId =
   | "devanagari" | "tamil" | "telugu" | "kannada" | "malayalam"
   | "bengali" | "gujarati" | "gurmukhi" | "odia" | "urdu";
 
-export type FontMeta = { id: FontId; name: string; group: string; weights: number[]; italic?: boolean; kind?: "system" | "custom" };
+export type FontMeta = { id: FontId; name: string; group: string; weights: number[]; italic?: boolean; kind?: "system" | "custom" | "licensed" };
 
 export const FONTS: FontMeta[] = [
   // The creator's own picks first.
+  // The creator's own five. Editor's Note and Aston Script are paid fonts we can't ship: they use
+  // the creator's installed or uploaded copy, and a close free face until then.
   { id: "sfpro", name: "SF Pro", group: "Favourites", weights: [500, 600, 700, 800, 900], italic: true, kind: "system" },
+  { id: "editorsNote", name: "Editor's Note", group: "Favourites", weights: [400], italic: true, kind: "licensed" },
   { id: "anton", name: "Anton", group: "Favourites", weights: [400] },
+  { id: "astonScript", name: "Aston Script", group: "Favourites", weights: [400], kind: "licensed" },
   { id: "timesNewRoman", name: "Times New Roman", group: "Favourites", weights: [400, 700], italic: true, kind: "system" },
-  { id: "instrumentSerif", name: "Instrument Serif", group: "Favourites", weights: [400], italic: true },
-  { id: "greatVibes", name: "Great Vibes", group: "Favourites", weights: [400] },
+
+  { id: "instrumentSerif", name: "Instrument Serif", group: "Serif", weights: [400], italic: true },
+  { id: "greatVibes", name: "Great Vibes", group: "Script", weights: [400] },
 
   { id: "playfair", name: "Playfair Display", group: "Serif", weights: [500, 600, 700, 800, 900], italic: true },
   { id: "fraunces", name: "Fraunces", group: "Serif", weights: [400, 500, 600], italic: true },
@@ -61,6 +66,15 @@ export const FONT_FAMILIES: Record<string, string> = Object.fromEntries([
 ]);
 FONT_FAMILIES.sfpro = `"SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, system-ui, sans-serif`;
 FONT_FAMILIES.timesNewRoman = `"Times New Roman", Times, serif`;
+FONT_FAMILIES.editorsNote = `"Editor's Note", "Editors Note", serif`;
+FONT_FAMILIES.astonScript = `"Aston Script", cursive`;
+
+/** Licensed fonts an uploaded file can stand in for, matched by file name. */
+const LICENSED: { id: FontId; match: RegExp }[] = [
+  { id: "editorsNote", match: /editor.?s?.?note/i },
+  { id: "astonScript", match: /aston/i },
+];
+const licensedFallback: Record<string, string> = {};
 
 // Unicode blocks → the script font that draws them.
 const SCRIPT_RANGES: [RegExp, ScriptFontId][] = [
@@ -124,6 +138,14 @@ async function addFace(name: string, data: ArrayBuffer) {
   const face = new FontFace(family, data);
   await face.load();
   document.fonts.add(face);
+  const licensed = LICENSED.find((l) => l.match.test(name));
+  if (licensed) {
+    // The real Editor's Note / Aston Script: lead that font's stack with it.
+    licensedFallback[licensed.id] ??= FONT_FAMILIES[licensed.id];
+    FONT_FAMILIES[licensed.id] = `'${family}', ${licensedFallback[licensed.id]}`;
+    fontMeta(licensed.id).kind = undefined;
+    return licensed.id;
+  }
   const id = `custom:${name}`;
   FONT_FAMILIES[id] = `'${family}'`;
   if (!FONTS.some((f) => f.id === id)) FONTS.unshift({ id, name, group: "Your fonts", weights: [400], kind: "custom" });

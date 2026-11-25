@@ -71,5 +71,8 @@ const bundled: Record<string, { style: { fontFamily: string } }> = {
 for (const [id, f] of Object.entries(bundled)) FONT_FAMILIES[id] = f.style.fontFamily;
 FONT_FAMILIES.sfpro = `"SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, ${f_interTight.style.fontFamily}`;
 FONT_FAMILIES.timesNewRoman = `"Times New Roman", Times, ${f_tinos.style.fontFamily}`;
+// Paid fonts: the creator's installed copy if they have one, else the closest free face.
+FONT_FAMILIES.editorsNote = `"Editor's Note", "Editors Note", ${f_instrumentSerif.style.fontFamily}`;
+FONT_FAMILIES.astonScript = `"Aston Script", ${f_greatVibes.style.fontFamily}`;
 
 export const fontVariables = [geist, geistMono, serif].map((f) => f.variable).join(" ");

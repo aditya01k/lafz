@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { LANGUAGES, languageById, type Script } from "@/lib/languages";
+import { PACKS, RUPEES_PER_MINUTE } from "@/lib/pricing";
 import { AccountButton } from "./Account";
 import { HeroDemo, Playground } from "./demo";
 
@@ -49,7 +50,7 @@ export default function Upload({ onFile, error, working }: { onFile: OnFile; err
 
         <section id="styles" className="border-t px-4 py-24" style={{ borderColor: C.line }}>
           <div className="mx-auto max-w-6xl">
-            <Head kicker="Styles" title={<>Type a line. <Em>See it</Em> in every style.</>} sub="Seven looks to start from, 28 trending fonts, or upload your own. Every colour, outline, highlight and animation is yours to change." />
+            <Head kicker="Styles" title={<>Type a line. <Em>See it</Em> in every style.</>} sub="Four looks to start from, 30 trending fonts, or upload your own. Every colour, outline, highlight and animation is yours to change." />
             <div className="mt-12">
               <Playground />
             </div>
@@ -166,7 +167,7 @@ function Hero({ onStart }: { onStart: () => void }) {
         </p>
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <button onClick={onStart} className="h-12 rounded-xl px-6 text-[15px] font-medium text-white shadow-[0_8px_24px_-8px_rgba(58,21,21,0.6)]" style={{ background: C.maroon }}>
-            Caption a reel · ₹2/min
+            Caption a reel · ₹{RUPEES_PER_MINUTE}/min
           </button>
           <a href="#open-source" className="flex h-12 items-center gap-2 rounded-xl border px-6 text-[15px] font-medium" style={{ background: "#fff", borderColor: C.line }}>
             <GitHubIcon className="size-4" /> Run it free · ₹0
@@ -223,7 +224,7 @@ function Statement() {
         {[
           ["₹0", "to run it yourself"],
           ["11", "Indian languages"],
-          ["₹2", "per minute, hosted"],
+          [`₹${RUPEES_PER_MINUTE}`, "per minute, hosted"],
         ].map(([n, l]) => (
           <div key={l} className="px-2">
             <div className="text-[34px] font-light tracking-[-0.03em] sm:text-[44px]">{n}</div>
@@ -358,7 +359,7 @@ function Dropzone({ onFile, error, pickRef }: { onFile: OnFile; error?: string; 
       />
       {error && <p className="mt-4 rounded-xl border border-red-700/20 bg-red-700/10 px-4 py-3 text-[13px] text-red-900">{error}</p>}
       <p className="mt-5 text-center text-[12px]" style={{ color: C.soft }}>
-        ₹2 a minute here, or <a href="#open-source" className="underline">free on your own machine</a>.
+        ₹{RUPEES_PER_MINUTE} a minute here, or <a href="#open-source" className="underline">free on your own machine</a>.
       </p>
     </div>
   );
@@ -489,12 +490,6 @@ function OpenSource() {
   );
 }
 
-const PACKS = [
-  { inr: 200, mins: 100 },
-  { inr: 500, mins: 250 },
-  { inr: 1000, mins: 500 },
-];
-
 function Pricing({ onStart }: { onStart: () => void }) {
   return (
     <section id="pricing" className="px-4 py-24">
@@ -517,15 +512,15 @@ function Pricing({ onStart }: { onStart: () => void }) {
           <div className="rounded-[24px] p-8" style={{ background: C.maroon, color: "#f6efe7" }}>
             <div className="text-[13px] font-medium uppercase tracking-[0.12em] opacity-60">Hosted</div>
             <div className="mt-4 flex items-baseline gap-2">
-              <span className="text-[56px] leading-none font-light tracking-[-0.05em]">₹2</span>
+              <span className="text-[56px] leading-none font-light tracking-[-0.05em]">₹{RUPEES_PER_MINUTE}</span>
               <span className="opacity-60">per minute of video</span>
             </div>
             <p className="mt-2 text-[14px] opacity-60">Prepaid credits. No subscription, never expire.</p>
             <div className="mt-6 grid grid-cols-3 gap-2">
               {PACKS.map((p) => (
-                <div key={p.inr} className="rounded-xl bg-white/10 p-3 text-center">
-                  <div className="text-[17px] font-medium">₹{p.inr.toLocaleString("en-IN")}</div>
-                  <div className="text-[12px] opacity-60">{p.mins} min</div>
+                <div key={p.id} className="rounded-xl bg-white/10 p-3 text-center">
+                  <div className="text-[17px] font-medium">₹{p.rupees.toLocaleString("en-IN")}</div>
+                  <div className="text-[12px] opacity-60">{p.minutes} min</div>
                 </div>
               ))}
             </div>

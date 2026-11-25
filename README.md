@@ -10,7 +10,7 @@ Open-source captions for 11 Indian languages, in English letters ("yaar kya scen
 - **Languages**: Hindi, Tamil, Telugu, Kannada, Malayalam, Bengali, Marathi, Gujarati, Punjabi, Urdu and Odia, each in English letters ("kya scene hai") or its own script ("क्या सीन है"), with English words kept in English.
 - **Transcribe**: Whisper (`whisper-1`) supplies per-word timing. If `SARVAM_API_KEY` is set, Sarvam `saaras:v4` supplies the text (`translit` for Roman script, `codemix` for native script with English left in English), mapped onto Whisper's timing. Then a GPT pass fixes spellings word for word, applies the creator's dictionary and suggests emojis.
 - **Edit**: tap any word to rewrite, highlight, delete, split it with a space, start a new line, add a word after it, or nudge its line ±0.1 s. Find and replace, undo/redo (⌘Z / ⇧⌘Z), space to play.
-- **Style**: 7 presets (Headline, Typewriter, Editorial, Marker, Clean, Script, Times) as starting points; every setting is editable: font (28 trending Google Fonts, SF Pro and Times New Roman from the device, or upload your own), weight, size, spacing, case, colours, highlight, outline, shadow, background, animation and layout. Indian scripts get matching Baloo faces automatically; Urdu runs right to left.
+- **Style**: 4 presets (Typewriter, Headline, Editorial, Marker) as starting points; every setting is editable: font (SF Pro, Editor's Note, Anton, Aston Script, Times New Roman, plus 25 trending Google Fonts; paid fonts use your installed or uploaded copy, with a free stand-in until then), weight, size, spacing, case, colours, highlight, outline, shadow, background, animation and layout. Indian scripts get matching Baloo faces automatically; Urdu runs right to left.
 - **Export**, all in the browser through WebCodecs ([Mediabunny](https://mediabunny.dev)): burned-in MP4 with the original audio, transparent WebM (VP9 alpha) for Premiere/DaVinci/Final Cut, green-screen MP4, SRT, VTT and a plain transcript.
 
 Rendering happens on the user's device, so the only per-video cost is transcription (about ₹0.50 a minute with Sarvam, plus Whisper and the spelling pass).
@@ -39,7 +39,7 @@ Export needs a browser with WebCodecs (Chrome, Edge, Safari 17+). Transparent ex
 
 ## Hosted mode
 
-Set `DATABASE_URL` and `BETTER_AUTH_SECRET` and the app turns on sign-in (email link or Google) and prepaid credits: ₹2 per minute of video, sold in packs through Dodo Payments (`src/lib/pricing.ts`). Credits are a ledger in Postgres (`src/server/credits.ts`); a transcription is charged up front and refunded if it fails. Tables are created on boot. Point Dodo's webhook at `/api/dodo/webhook`.
+Set `DATABASE_URL` and `BETTER_AUTH_SECRET` and the app turns on sign-in (email link or Google) and prepaid credits: ₹10 per minute of video, sold in packs through Dodo Payments (`src/lib/pricing.ts`). Credits are a ledger in Postgres (`src/server/credits.ts`); a transcription is charged up front and refunded if it fails. Tables are created on boot. Point Dodo's webhook at `/api/dodo/webhook`.
 
 Leave those unset and every feature is free with no sign-in, which is what you want on your own machine.
 

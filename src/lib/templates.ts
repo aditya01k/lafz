@@ -9,7 +9,7 @@ import type { Word } from "./types";
  * editor can change any field.
  */
 
-export type TemplateId = "headline" | "typewriter" | "editorial" | "marker" | "clean" | "script" | "times";
+export type TemplateId = "typewriter" | "headline" | "editorial" | "marker";
 
 export type Style = {
   preset: TemplateId;
@@ -71,35 +71,22 @@ const t = (id: TemplateId, name: string, blurb: string, s: Partial<Style>): Temp
   id, name, blurb, style: { ...BASE, ...s, preset: id },
 });
 
-// The creator's chosen looks: the four they picked, plus one for each of their fonts
-// (SF Pro, Aston-style script, Times New Roman). Editorial and Script use the closest free
-// faces to Editor's Note and Aston Script; uploading those fonts swaps them in.
+// Exactly the four looks the creator picked. Editorial is set in Editor's Note (a licensed font:
+// the closest free face stands in until the creator uploads their copy).
 export const TEMPLATES: Template[] = [
-  t("headline", "Headline", "Two huge words, stacked", {
-    font: "anton", weight: 400, size: 0.13, case: "upper", stack: true, wordsPerLine: 2, highlightScope: "current", y: 0.6,
-  }),
   t("typewriter", "Typewriter", "Words appear as they're spoken", {
     font: "sfpro", weight: 600, size: 0.05, highlight: "none", reveal: true, outline: false, background: "word",
     backgroundOpacity: 0.78, radius: 0.12, wordsPerLine: 6, animation: "fade", y: 0.74,
   }),
-  t("editorial", "Editorial", "Elegant italic serif, the Editor's Note look", {
-    font: "instrumentSerif", weight: 400, italic: true, size: 0.075, highlight: "none", dim: 0.5, outline: false, shadow: true,
+  t("headline", "Headline", "Two huge words, stacked", {
+    font: "anton", weight: 400, size: 0.13, case: "upper", stack: true, wordsPerLine: 2, highlightScope: "current", y: 0.6,
+  }),
+  t("editorial", "Editorial", "Elegant italic serif", {
+    font: "editorsNote", weight: 400, italic: true, size: 0.075, highlight: "none", dim: 0.5, outline: false, shadow: true,
     shadowColor: "#00000080", shadowBlur: 0.35, wordsPerLine: 4, animation: "fade", y: 0.7,
   }),
   t("marker", "Marker", "Hand-drawn, casual vlog energy", {
     font: "permanentMarker", weight: 400, size: 0.072, highlightColor: "#ffe600", outlineWidth: 0.12, wordsPerLine: 3, animation: "bounce", y: 0.68,
-  }),
-  t("clean", "Clean", "SF Pro, bold, the spoken word in yellow", {
-    font: "sfpro", weight: 800, size: 0.07, outlineWidth: 0.12, shadow: true, shadowColor: "#00000080", shadowBlur: 0.3,
-    wordsPerLine: 3, animation: "pop", y: 0.68,
-  }),
-  t("script", "Script", "Flowing signature script, the Aston look", {
-    font: "greatVibes", weight: 400, size: 0.1, highlight: "none", outline: false, shadow: true, shadowColor: "#00000099",
-    shadowBlur: 0.3, wordsPerLine: 3, animation: "fade", y: 0.66,
-  }),
-  t("times", "Times", "Times New Roman, classic and editorial", {
-    font: "timesNewRoman", weight: 400, size: 0.068, highlight: "underline", highlightColor: "#ffffff", outline: false,
-    shadow: true, shadowColor: "#00000099", shadowBlur: 0.3, wordsPerLine: 5, animation: "none", y: 0.72,
   }),
 ];
 

@@ -233,7 +233,7 @@ function BuyDialog({ reason, onClose, onDevPaid }: { reason?: string; onClose: (
           >
             <span>
               <span className="block text-[16px] font-semibold">{p.minutes} minutes</span>
-              <span className="block font-mono text-[12px] text-muted">{p.minutes} one-minute reels</span>
+              <span className="block font-mono text-[12px] text-muted">{p.minutes} one-minute reels · ₹{RUPEES_PER_MINUTE}/min</span>
             </span>
             <span className="text-[16px] font-semibold">{busy === p.id ? "…" : `₹${p.rupees.toLocaleString("en-IN")}`}</span>
           </button>
@@ -243,7 +243,7 @@ function BuyDialog({ reason, onClose, onDevPaid }: { reason?: string; onClose: (
       {dev && (
         <button
           onClick={async () => {
-            await fetch("/api/dev/topup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pack: "p200" }) });
+            await fetch("/api/dev/topup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pack: PACKS[0].id }) });
             await onDevPaid();
             onClose();
           }}

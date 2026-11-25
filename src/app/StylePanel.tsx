@@ -234,7 +234,9 @@ function FontPicker({ value, onChange }: { value: FontId; onChange: (f: FontId) 
                   <span style={{ fontFamily: FONT_FAMILIES[f.id], fontWeight: f.weights.at(-1) }} className="text-[18px]">
                     {f.name}
                   </span>
-                  <span className="text-[11px] text-muted">{f.weights.length > 1 ? `${f.weights.length} weights` : ""}</span>
+                  <span className="text-[11px] text-muted">
+                    {f.kind === "licensed" ? "upload yours" : f.id === "sfpro" ? "on Apple devices" : f.kind === "system" ? "system font" : f.weights.length > 1 ? `${f.weights.length} weights` : ""}
+                  </span>
                 </button>
               ))}
             </div>
@@ -267,7 +269,7 @@ function FontPicker({ value, onChange }: { value: FontId; onChange: (f: FontId) 
             />
             {uploadError && <p className="mt-2 text-[12px] text-red-300">{uploadError}</p>}
             <p className="mt-2 text-[11px] leading-relaxed text-muted">
-              For fonts you own, like Editor&apos;s Note or Aston Script. They stay in this browser. SF Pro and Times New Roman
+              Have Editor&apos;s Note or Aston Script? Upload the file and it replaces the stand-in everywhere. Fonts stay in this browser. SF Pro and Times New Roman
               use your device&apos;s own copy. Hindi, Tamil and other scripts get a matching Baloo face automatically.
             </p>
           </div>
