@@ -149,7 +149,7 @@ function Hero() {
   return (
     <section className="relative overflow-hidden px-4 pt-16 pb-10 sm:pt-24">
       <Circuit />
-      <div className="relative mx-auto max-w-4xl text-center">
+      <div className="relative mx-auto max-w-6xl text-center">
         <a
           href="#mac"
           className="inline-flex items-center gap-2.5 rounded-full border py-1.5 pr-4 pl-1.5 text-[13px] font-medium shadow-sm"
@@ -161,10 +161,10 @@ function Hero() {
           Runs offline on your Mac · open source
           <span aria-hidden>→</span>
         </a>
-        <h1 className="mt-8 text-[46px] leading-[1.02] font-normal tracking-[-0.045em] sm:text-[80px]">
-          Captions that speak
+        <h1 className="mx-auto mt-8 max-w-6xl text-[40px] leading-[1.04] font-normal tracking-[-0.045em] sm:text-[56px] lg:text-[64px]">
+          Captions for every Indian language,
           <br />
-          <Em>your language.</Em>
+          <Em>running locally on your Mac.</Em>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed sm:text-[19px]" style={{ color: C.soft }}>
           Hindi, Tamil, Telugu and more, spelled the way you type and timed word by word. Free and offline on any M-series Mac.
@@ -571,7 +571,7 @@ function Pricing() {
               ))}
             </div>
             <ul className="mt-6 space-y-2.5 text-[15px]">
-              {["Nothing to install", "Unlimited edits and exports", "Charged only for transcription"].map((x) => (
+              {["Nothing to install", "Caption and edit free, pay when you export", "Re-export the same video free, forever"].map((x) => (
                 <Check key={x}>{x}</Check>
               ))}
             </ul>

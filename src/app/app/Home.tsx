@@ -34,15 +34,42 @@ type OnFile = (f: File, opts: { dictionary: string; language: string; script: Sc
 
 const STEPS = ["Reading the audio", "Listening to every word", "Fixing the spellings"];
 
-export default function Home({ onFile, error, working }: { onFile: OnFile; error?: string; working?: { step: number; name: string } }) {
+type Mode = "simple" | "pro";
+
+function readMode(): Mode {
+  try {
+    return JSON.parse(localStorage.getItem("lafz:mode") ?? '"pro"') === "simple" ? "simple" : "pro";
+  } catch {
+    return "pro";
+  }
+}
+
+export default function Home({
+  onFile,
+  onSample,
+  error,
+  working,
+}: {
+  onFile: OnFile;
+  onSample: () => void;
+  error?: string;
+  working?: { step: number; name: string };
+}) {
   const { me, openBuy } = useAccount();
   const [recent, setRecent] = useState<Recent[]>([]);
+  const [mode, setModeRaw] = useState<Mode>("pro");
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reading browser storage after mount
     setRecent(readRecent());
+    setModeRaw(readMode());
   }, []);
+  const setMode = (m: Mode) => {
+    setModeRaw(m);
+    try {
+      localStorage.setItem("lafz:mode", JSON.stringify(m));
+    } catch {}
+  };
   const hosted = me?.billing && me.user;
-  const empty = hosted && (me.seconds ?? 0) < 1;
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -61,26 +88,55 @@ export default function Home({ onFile, error, working }: { onFile: OnFile; error
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
-        {empty && (
-          <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/10 px-5 py-4">
-            <div>
-              <div className="text-[15px] font-medium">Add minutes to start captioning</div>
-              <div className="text-[13px] text-muted">₹{RUPEES_PER_MINUTE} a minute, prepaid. Credits never expire.</div>
-            </div>
-            <button onClick={() => openBuy()} className="h-10 rounded-full bg-accent px-4 text-[14px] font-semibold text-accent-ink">
-              Add credits
-            </button>
+        <h1 className="text-[28px] font-semibold tracking-[-0.02em]">{working ? "Captioning…" : "New video"}</h1>
+        <p className="mt-1 text-[14px] text-muted">
+          {hosted ? (
+            <>
+              Caption and edit for free. You pay ₹{RUPEES_PER_MINUTE} a minute only when you export
+              {(me.seconds ?? 0) > 0 ? <> · {minutesLabel(me.seconds ?? 0)} of credit left</> : null}.
+            </>
+          ) : me?.local ? (
+            "Running on this Mac, offline."
+          ) : (
+            "Drop a reel to caption it."
+          )}
+        </p>
+
+        {!working && (
+          <div className="mt-6 grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                ["pro", "Pro editor", "Timeline, frame timecode, quality checks, exports for Premiere and Resolve"],
+                ["simple", "Simple", "Pick one of 12 looks, set size and place, export"],
+              ] as const
+            ).map(([m, title, body]) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`rounded-2xl border p-4 text-left transition ${mode === m ? "border-accent bg-accent/10" : "border-hairline bg-surface hover:border-white/20"}`}
+              >
+                <span className="flex items-center gap-2 text-[15px] font-semibold">
+                  <span className={`size-3.5 rounded-full border-2 ${mode === m ? "border-accent bg-accent" : "border-white/30"}`} />
+                  {title}
+                </span>
+                <span className="mt-1 block pl-[22px] text-[13px] text-muted">{body}</span>
+              </button>
+            ))}
           </div>
         )}
 
-        <h1 className="text-[28px] font-semibold tracking-[-0.02em]">{working ? "Captioning…" : "New video"}</h1>
-        <p className="mt-1 text-[14px] text-muted">
-          {hosted ? <>You have {minutesLabel(me.seconds ?? 0)} of captioning.</> : me?.local ? "Running on this Mac, offline." : "Drop a reel to caption it."}
-        </p>
-
-        <div className="mt-6 rounded-2xl border border-hairline bg-surface p-6">
+        <div className="mt-4 rounded-2xl border border-hairline bg-surface p-6">
           {working ? <Progress {...working} /> : <Dropzone onFile={onFile} error={error} />}
         </div>
+        {!working && (
+          <button onClick={onSample} className="mt-4 flex w-full items-center justify-between rounded-2xl border border-hairline px-5 py-4 text-left hover:border-white/20">
+            <span>
+              <span className="block text-[15px] font-medium">No video handy? Try the editor on a sample reel</span>
+              <span className="block text-[13px] text-muted">Already captioned, free to edit and export.</span>
+            </span>
+            <span className="text-[18px] text-muted">→</span>
+          </button>
+        )}
 
         {recent.length > 0 && !working && (
           <section className="mt-12">

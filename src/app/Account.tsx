@@ -15,7 +15,8 @@ type AccountCtx = {
   refresh: () => Promise<Me | null>;
   setSeconds: (s: number) => void;
   openSignIn: () => void;
-  openBuy: (reason?: string) => void;
+  /** With `then`, checkout opens in a new tab and `then` runs once `needed` seconds are there. */
+  openBuy: (reason?: string, then?: { needed: number; onPaid: () => void }) => void;
 };
 
 const Ctx = createContext<AccountCtx>({
@@ -30,7 +31,7 @@ export const useAccount = () => useContext(Ctx);
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
-  const [dialog, setDialog] = useState<{ kind: "buy"; reason?: string } | null>(null);
+  const [dialog, setDialog] = useState<{ kind: "buy"; reason?: string; then?: { needed: number; onPaid: () => void } } | null>(null);
   const [toast, setToast] = useState("");
 
   const refresh = useCallback(async () => {
@@ -73,13 +74,13 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     openSignIn: () => {
       location.href = "/login?next=/app";
     },
-    openBuy: (reason) => setDialog({ kind: "buy", reason }),
+    openBuy: (reason, then) => setDialog({ kind: "buy", reason, then }),
   };
 
   return (
     <Ctx.Provider value={ctx}>
       {children}
-      {dialog?.kind === "buy" && <BuyDialog reason={dialog.reason} onClose={() => setDialog(null)} onDevPaid={refresh} />}
+      {dialog?.kind === "buy" && <BuyDialog reason={dialog.reason} then={dialog.then} onClose={() => setDialog(null)} refresh={refresh} />}
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-full border border-hairline bg-raised px-4 py-2 text-[14px] shadow-xl">
           {toast}
@@ -156,10 +157,57 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
   );
 }
 
-function BuyDialog({ reason, onClose, onDevPaid }: { reason?: string; onClose: () => void; onDevPaid: () => Promise<unknown> }) {
+function BuyDialog({
+  reason,
+  then,
+  onClose,
+  refresh,
+}: {
+  reason?: string;
+  then?: { needed: number; onPaid: () => void };
+  onClose: () => void;
+  refresh: () => Promise<Me | null>;
+}) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState("");
   const dev = process.env.NODE_ENV === "development";
+
+  // Paying from the editor: checkout runs in another tab, this one waits for the credits so the
+  // edit (which lives only in this tab) is never lost.
+  useEffect(() => {
+    if (!waiting || !then) return;
+    let alive = true;
+    const tick = async () => {
+      const m = await refresh();
+      if (!alive) return;
+      if ((m?.seconds ?? 0) >= then.needed) {
+        onClose();
+        then.onPaid();
+      } else setTimeout(tick, 3000);
+    };
+    const id = setTimeout(tick, 3000);
+    return () => {
+      alive = false;
+      clearTimeout(id);
+    };
+  }, [waiting, then, refresh, onClose]);
+
+  if (waiting) {
+    return (
+      <Modal onClose={onClose}>
+        <h2 className="text-[20px] font-semibold tracking-[-0.02em]">Finish paying in the new tab</h2>
+        <p className="mt-1.5 text-[14px] text-muted">Your edit is safe here. As soon as the credits arrive, your export starts on its own.</p>
+        <div className="mt-6 flex items-center gap-3 text-[14px]">
+          <span className="size-2 animate-pulse rounded-full bg-accent" /> Waiting for payment…
+        </div>
+        <button onClick={onClose} className="mt-6 text-[13px] text-muted hover:text-foreground">
+          Cancel
+        </button>
+      </Modal>
+    );
+  }
+
   return (
     <Modal onClose={onClose}>
       <h2 className="text-[20px] font-semibold tracking-[-0.02em]">Add credits</h2>
@@ -174,14 +222,20 @@ function BuyDialog({ reason, onClose, onDevPaid }: { reason?: string; onClose: (
             onClick={async () => {
               setBusy(p.id);
               setError("");
+              // Opened now, inside the click, so popup blockers allow it; pointed at checkout below.
+              const tab = then ? window.open("", "_blank") : null;
               const res = await fetch("/api/credits/checkout", {
                 method: "POST",
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify({ pack: p.id }),
               });
               const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
-              if (json.url) location.href = json.url;
+              if (json.url && tab) {
+                tab.location.href = json.url;
+                setWaiting(true);
+              } else if (json.url) location.href = json.url;
               else {
+                tab?.close();
                 setError(json.error ?? "Checkout couldn't start.");
                 setBusy(null);
               }
@@ -201,8 +255,9 @@ function BuyDialog({ reason, onClose, onDevPaid }: { reason?: string; onClose: (
         <button
           onClick={async () => {
             await fetch("/api/dev/topup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pack: PACKS[0].id }) });
-            await onDevPaid();
+            const m = await refresh();
             onClose();
+            if (then && (m?.seconds ?? 0) >= then.needed) then.onPaid();
           }}
           className="mt-4 w-full rounded-lg border border-dashed border-white/20 py-2 font-mono text-[12px] text-muted hover:text-foreground"
         >

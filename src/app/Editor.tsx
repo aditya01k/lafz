@@ -57,7 +57,18 @@ const KEYS: [string, string][] = [
   ["Esc", "Deselect"],
 ];
 
-export default function Editor({ project, onChange, onClose }: { project: Project; onChange: (p: Project) => void; onClose: () => void }) {
+export default function Editor({
+  project,
+  onChange,
+  onClose,
+  beforeExport,
+}: {
+  project: Project;
+  onChange: (p: Project) => void;
+  onClose: () => void;
+  /** Hosted: pays for the video at its first export. Resolves false to stop. */
+  beforeExport?: () => Promise<boolean>;
+}) {
   const [words, setWordsRaw] = useState(project.words);
   const [style, setStyle] = useState(project.style);
   const [past, setPast] = useState<Word[][]>([]);
@@ -883,6 +894,8 @@ export default function Editor({ project, onChange, onClose }: { project: Projec
           style={style}
           fps={fpsKnown ? fps : undefined}
           simple={mode === "simple"}
+          paid={!beforeExport || !!project.unlocked || !!project.sample}
+          beforeExport={beforeExport}
           onClose={() => setExporting(false)}
         />
       )}

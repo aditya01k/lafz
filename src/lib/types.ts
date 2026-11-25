@@ -22,4 +22,6 @@ export type TranscribeResult = {
   durationSec: number;
   /** Credit left, in seconds (hosted only). */
   seconds?: number;
+  /** Hosted: the video on the account, charged at its first export. */
+  videoId?: string;
 };

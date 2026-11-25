@@ -23,6 +23,11 @@ export type Project = {
   /** What it was captioned in (older saved projects don't have these). */
   language?: string;
   script?: "latin" | "native";
+  /** Hosted: this video on the account. Charged at first export; then `unlocked`. */
+  videoId?: string;
+  unlocked?: boolean;
+  /** The bundled sample reel: free to edit and export. */
+  sample?: boolean;
 };
 
 type Phase =
@@ -35,6 +40,55 @@ const cacheKey = (f: File) => `lafz:${f.name}:${f.size}:${f.lastModified}`;
 export default function Studio() {
   const [phase, setPhase] = useState<Phase>({ kind: "upload" });
   const account = useAccount();
+
+  /** The sample reel, straight into the editor: no upload, no transcription, no charge. */
+  async function openSample() {
+    try {
+      setPhase({ kind: "working", step: 0, name: "Sample reel" });
+      const [blob, words] = await Promise.all([fetch("/reels/demo.mp4").then((r) => r.blob()), fetch("/reels/demo.json").then((r) => r.json() as Promise<Word[]>)]);
+      const file = new File([blob], "sample-reel.mp4", { type: "video/mp4", lastModified: 1 });
+      const key = `${cacheKey(file)}:hindi:latin`;
+      const saved = readSaved(key);
+      const project: Project = saved
+        ? { file, url: URL.createObjectURL(file), key, ...saved, sample: true }
+        : { file, url: URL.createObjectURL(file), key, words, style: defaultStyle(), duration: 10.2, language: "hindi", script: "latin", sample: true };
+      save(project);
+      setPhase({ kind: "edit", project });
+    } catch {
+      setPhase({ kind: "upload", error: "The sample couldn't load. Try again." });
+    }
+  }
+
+  /**
+   * Pay on export: the first export of a hosted video charges its minutes. Not enough credits
+   * opens checkout in a new tab and carries on here once they arrive, so the edit is never lost.
+   */
+  async function unlock(p: Project): Promise<boolean> {
+    if (!account.me?.billing || p.sample || p.unlocked || !p.videoId) return true;
+    const res = await fetch("/api/videos/unlock", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: p.videoId }) });
+    const j = (await res.json().catch(() => ({}))) as { seconds?: number; code?: string; needed?: number; error?: string };
+    if (res.ok) {
+      if (j.seconds !== undefined) account.setSeconds(j.seconds);
+      const next = { ...p, unlocked: true };
+      save(next);
+      setPhase((ph) => (ph.kind === "edit" ? { kind: "edit", project: { ...ph.project, unlocked: true } } : ph));
+      return true;
+    }
+    if (j.code === "signin") {
+      location.href = "/login?next=/app";
+      return false;
+    }
+    if (j.code === "credits") {
+      account.setSeconds(j.seconds ?? 0);
+      return new Promise((resolve) =>
+        account.openBuy(`Exporting this video uses ${minutesLabel(j.needed ?? 0)}. You have ${minutesLabel(j.seconds ?? 0)}.`, {
+          needed: j.needed ?? 0,
+          onPaid: () => void unlock(p).then(resolve),
+        }),
+      );
+    }
+    throw new Error(j.error ?? "Couldn't start the export.");
+  }
 
 
   async function start(file: File, opts: { dictionary: string; language: string; script: "latin" | "native" }) {
@@ -72,12 +126,12 @@ export default function Studio() {
       if (json.code === "signin") location.href = "/login?next=/app";
       if (json.code === "credits") {
         account.setSeconds(json.seconds ?? 0);
-        account.openBuy(`This video needs ${minutesLabel(json.needed ?? 0)} and you have ${minutesLabel(json.seconds ?? 0)}.`);
+        account.openBuy(json.error);
       }
       if (!res.ok) throw new Error(json.error ?? "Transcription failed.");
       if (json.seconds !== undefined) account.setSeconds(json.seconds);
       if (!json.words.length) throw new Error("We couldn't hear any speech in this video.");
-      const project: Project = { file, url, key, words: json.words, style: defaultStyle(), duration, language: opts.language, script: opts.script };
+      const project: Project = { file, url, key, words: json.words, style: defaultStyle(), duration, language: opts.language, script: opts.script, videoId: json.videoId };
       save(project);
       rememberRecent({ key, name: file.name, duration, language: opts.language, script: opts.script, at: Date.now() });
       setPhase({ kind: "edit", project });
@@ -91,6 +145,7 @@ export default function Studio() {
     return (
       <Editor
         project={phase.project}
+        beforeExport={() => unlock(phase.project)}
         onChange={(p) => save(p)}
         onClose={() => {
           URL.revokeObjectURL(phase.project.url);
@@ -102,17 +157,20 @@ export default function Studio() {
   return (
     <Home
       onFile={start}
+      onSample={openSample}
       error={phase.kind === "upload" ? phase.error : undefined}
       working={phase.kind === "working" ? { step: phase.step, name: phase.name } : undefined}
     />
   );
 }
 
-function readSaved(key: string): Pick<Project, "words" | "style" | "duration" | "language" | "script"> | null {
+type Saved = Pick<Project, "words" | "style" | "duration" | "language" | "script" | "videoId" | "unlocked">;
+
+function readSaved(key: string): Saved | null {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
-    const saved = JSON.parse(raw) as Pick<Project, "words" | "style" | "duration" | "language" | "script">;
+    const saved = JSON.parse(raw) as Saved;
     return { ...saved, style: normalizeStyle(saved.style) };
   } catch {
     return null;
@@ -121,7 +179,10 @@ function readSaved(key: string): Pick<Project, "words" | "style" | "duration" | 
 
 function save(p: Project) {
   try {
-    localStorage.setItem(p.key, JSON.stringify({ words: p.words, style: p.style, duration: p.duration, language: p.language, script: p.script }));
+    localStorage.setItem(
+      p.key,
+      JSON.stringify({ words: p.words, style: p.style, duration: p.duration, language: p.language, script: p.script, videoId: p.videoId, unlocked: p.unlocked }),
+    );
   } catch {
     // Storage full or blocked: the edit still works, it just won't survive a refresh.
   }

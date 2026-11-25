@@ -48,6 +48,19 @@ create table if not exists corrections (
 );
 create index if not exists corrections_lang on corrections (language, script, lower(before));
 
+-- Each captioned video. Transcribing is free up to a limit; the minutes are charged once, the
+-- first time the video is exported (unlocked_at). Unpaid ones count against FREE_UNPAID_SECONDS.
+create table if not exists videos (
+  id text primary key,
+  user_id text not null references "user"(id) on delete cascade,
+  seconds integer not null,
+  note text not null default '',
+  created_at timestamptz not null default now(),
+  unlocked_at timestamptz,
+  charge_ref text
+);
+create index if not exists videos_user on videos (user_id, created_at desc);
+
 -- Small key/value settings, e.g. the Dodo product made for each credit pack.
 create table if not exists settings (
   key text primary key,

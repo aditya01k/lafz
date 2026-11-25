@@ -1,7 +1,8 @@
 import { languageById, type Script } from "@/lib/languages";
 import type { TranscribeResult } from "@/lib/types";
 import { billingOn, currentUser } from "@/server/auth";
-import { balance, charge, refundCharge, settleCharge } from "@/server/credits";
+import { minutesLabel } from "@/lib/pricing";
+import { mayTranscribe, recordVideo } from "@/server/videos";
 import { clientIp, endJob, spend, startJob } from "@/server/limit";
 import { sarvamWords } from "@/server/sarvam";
 import { cleanSpelling } from "@/server/spelling";
@@ -51,19 +52,23 @@ export async function POST(req: Request) {
       return Response.json({ error: "That's an hour of captioning in the last hour. Try again in a bit." }, { status: 429 });
     }
 
-    // Hosted: the minutes are taken up front, settled on success, given back on failure.
-    let paid: { userId: string; ref: string } | null = null;
+    // Hosted: transcribing is free, the minutes are charged at first export. Unpaid videos are
+    // capped so the free part can't be used forever.
     if (user) {
-      const ref = await charge(user.id, seconds, `${language.name} (${script}), ${seconds}s`);
-      if (!ref) {
+      const can = await mayTranscribe(user.id, seconds);
+      if (!can.ok) {
         return Response.json(
-          { error: "Not enough credits for this video.", code: "credits", needed: seconds, seconds: await balance(user.id) },
+          {
+            error: `You have ${minutesLabel(can.unpaid)} of captioned videos not yet exported. Export or add credits to caption more.`,
+            code: "credits",
+            needed: seconds,
+            seconds: can.balance,
+          },
           { status: 402 },
         );
       }
-      paid = { userId: user.id, ref };
     }
-    return await transcribe(wav, duration, dictionary, language, script, paid);
+    return await transcribe(wav, duration, dictionary, language, script, user ? { userId: user.id, seconds } : null);
   } finally {
     endJob(who);
   }
@@ -75,7 +80,7 @@ async function transcribe(
   dictionary: string[],
   language: ReturnType<typeof languageById>,
   script: Script,
-  paid: { userId: string; ref: string } | null,
+  owner: { userId: string; seconds: number } | null,
 ) {
   try {
     // Words past the real end of the audio can't be right: drop them.
@@ -91,14 +96,12 @@ async function transcribe(
       engine: local ? "local" : sarvamKey ? "sarvam+whisper" : "whisper",
       durationSec: duration,
       words: cleaned.map((w, i) => ({ id: `w${i}`, text: w.text, start: round(w.start), end: round(w.end), emoji: w.emoji })),
-      ...(paid ? { seconds: await balance(paid.userId) } : {}),
     };
-    if (paid) await settleCharge(paid.ref);
+    if (owner) result.videoId = await recordVideo(owner.userId, owner.seconds, `${language.name} (${script}), ${owner.seconds}s`);
     return Response.json(result);
   } catch (err) {
     console.error("transcribe failed", err);
-    if (paid) await refundCharge(paid.userId, paid.ref).catch((e) => console.error("refund failed", e));
-    return Response.json({ error: "Transcription failed. Your credits weren't used. Try again in a moment." }, { status: 502 });
+    return Response.json({ error: "Transcription failed. Try again in a moment." }, { status: 502 });
   }
 }
 

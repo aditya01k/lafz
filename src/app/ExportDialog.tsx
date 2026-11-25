@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { download, exportBurnedIn, exportOverlay, exportPngSequence } from "@/lib/export";
+import { minutesLabel, RUPEES_PER_MINUTE } from "@/lib/pricing";
 import { toSrt, toText, toVtt, type Line, type SubOptions } from "@/lib/lines";
 import type { Style } from "@/lib/templates";
 import type { Word } from "@/lib/types";
@@ -30,6 +31,8 @@ export default function ExportDialog({
   style,
   fps: sourceFps,
   simple,
+  paid = true,
+  beforeExport,
   onClose,
 }: {
   file: File;
@@ -42,6 +45,10 @@ export default function ExportDialog({
   fps?: number;
   /** Non-editors see just the video and SRT. */
   simple?: boolean;
+  /** Already paid for (or nothing to pay): no price note. */
+  paid?: boolean;
+  /** Pays for the video at its first export; false stops the export. */
+  beforeExport?: () => Promise<boolean>;
   onClose: () => void;
 }) {
   const [busy, setBusy] = useState<Kind | null>(null);
@@ -55,6 +62,11 @@ export default function ExportDialog({
 
   async function run(kind: Kind) {
     setError("");
+    try {
+      if (beforeExport && !(await beforeExport())) return;
+    } catch (err) {
+      return setError(err instanceof Error ? err.message : "Couldn't start the export.");
+    }
     if (kind === "srt" || kind === "vtt" || kind === "txt") {
       const text = kind === "srt" ? toSrt(lines, sub) : kind === "vtt" ? toVtt(lines, sub) : toText(words);
       download(new Blob([text], { type: "text/plain" }), `${base}.${kind}`);
@@ -102,7 +114,14 @@ export default function ExportDialog({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6" onClick={() => !busy && onClose()}>
       <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-hairline bg-surface p-5 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h2 className="text-[17px] font-semibold">Export</h2>
+          <div>
+            <h2 className="text-[17px] font-semibold">Export</h2>
+            {!paid && (
+              <p className="mt-0.5 text-[12px] text-muted">
+                Your first export uses {minutesLabel(duration)} of credit (₹{Math.max(1, Math.round((duration / 60) * RUPEES_PER_MINUTE))}). Every export after that is free.
+              </p>
+            )}
+          </div>
           {!busy && (
             <button onClick={onClose} className="text-[14px] text-muted">
               Close
